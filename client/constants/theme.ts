@@ -1,30 +1,47 @@
 import { Platform } from "react-native";
 
-const tintColorLight = "#007AFF";
-const tintColorDark = "#0A84FF";
-
 export const Colors = {
   light: {
-    text: "#11181C",
-    buttonText: "#FFFFFF",
-    tabIconDefault: "#687076",
-    tabIconSelected: tintColorLight,
-    link: "#007AFF",
-    backgroundRoot: "#FFFFFF", // Elevation 0
-    backgroundDefault: "#F2F2F2", // Elevation 1
-    backgroundSecondary: "#E6E6E6", // Elevation 2
-    backgroundTertiary: "#D9D9D9", // Elevation 3
+    text: "#FFFFFF",
+    textSecondary: "#A0AABF",
+    textTertiary: "#6B7589",
+    buttonText: "#0A0E1A",
+    tabIconDefault: "#6B7589",
+    tabIconSelected: "#00D9FF",
+    link: "#00D9FF",
+    primary: "#00D9FF",
+    primaryDark: "#00A3BF",
+    accent: "#7C4DFF",
+    success: "#00E676",
+    error: "#FF5252",
+    warning: "#FFB74D",
+    backgroundRoot: "#0A0E1A",
+    backgroundDefault: "#151B2E",
+    backgroundSecondary: "#1F2637",
+    backgroundTertiary: "#2A3142",
+    glow: "rgba(0, 217, 255, 0.3)",
+    border: "rgba(0, 217, 255, 0.2)",
   },
   dark: {
-    text: "#ECEDEE",
-    buttonText: "#FFFFFF",
-    tabIconDefault: "#9BA1A6",
-    tabIconSelected: tintColorDark,
-    link: "#0A84FF",
-    backgroundRoot: "#1F2123", // Elevation 0
-    backgroundDefault: "#2A2C2E", // Elevation 1
-    backgroundSecondary: "#353739", // Elevation 2
-    backgroundTertiary: "#404244", // Elevation 3
+    text: "#FFFFFF",
+    textSecondary: "#A0AABF",
+    textTertiary: "#6B7589",
+    buttonText: "#0A0E1A",
+    tabIconDefault: "#6B7589",
+    tabIconSelected: "#00D9FF",
+    link: "#00D9FF",
+    primary: "#00D9FF",
+    primaryDark: "#00A3BF",
+    accent: "#7C4DFF",
+    success: "#00E676",
+    error: "#FF5252",
+    warning: "#FFB74D",
+    backgroundRoot: "#0A0E1A",
+    backgroundDefault: "#151B2E",
+    backgroundSecondary: "#1F2637",
+    backgroundTertiary: "#2A3142",
+    glow: "rgba(0, 217, 255, 0.3)",
+    border: "rgba(0, 217, 255, 0.2)",
   },
 };
 
@@ -40,6 +57,7 @@ export const Spacing = {
   "5xl": 48,
   inputHeight: 48,
   buttonHeight: 52,
+  fabSize: 64,
 };
 
 export const BorderRadius = {
@@ -91,15 +109,35 @@ export const Typography = {
   },
 };
 
+export const Shadows = {
+  glow: {
+    shadowColor: "#00D9FF",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  fab: {
+    shadowColor: "#00D9FF",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  card: {
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+};
+
 export const Fonts = Platform.select({
   ios: {
-    /** iOS `UIFontDescriptorSystemDesignDefault` */
     sans: "system-ui",
-    /** iOS `UIFontDescriptorSystemDesignSerif` */
     serif: "ui-serif",
-    /** iOS `UIFontDescriptorSystemDesignRounded` */
     rounded: "ui-rounded",
-    /** iOS `UIFontDescriptorSystemDesignMonospaced` */
     mono: "ui-monospace",
   },
   default: {

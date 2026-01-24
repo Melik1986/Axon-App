@@ -26,7 +26,7 @@ export default function RootStackNavigator() {
         component={ModalScreen}
         options={{
           presentation: "modal",
-          headerTitle: "Modal",
+          headerTitle: "Settings",
         }}
       />
     </Stack.Navigator>
