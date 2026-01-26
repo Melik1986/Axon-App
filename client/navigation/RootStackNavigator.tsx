@@ -1,12 +1,18 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
-import ModalScreen from "@/screens/ModalScreen";
+import LLMProviderScreen from "@/screens/LLMProviderScreen";
+import ERPSettingsScreen from "@/screens/ERPSettingsScreen";
+import LanguageScreen from "@/screens/LanguageScreen";
+import VoiceScreen from "@/screens/VoiceScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
   Main: undefined;
-  Modal: undefined;
+  LLMProvider: undefined;
+  ERPSettings: undefined;
+  Language: undefined;
+  Voice: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -22,11 +28,35 @@ export default function RootStackNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="Modal"
-        component={ModalScreen}
+        name="LLMProvider"
+        component={LLMProviderScreen}
         options={{
           presentation: "modal",
-          headerTitle: "Settings",
+          headerTitle: "AI Provider",
+        }}
+      />
+      <Stack.Screen
+        name="ERPSettings"
+        component={ERPSettingsScreen}
+        options={{
+          presentation: "modal",
+          headerTitle: "ERP Connection",
+        }}
+      />
+      <Stack.Screen
+        name="Language"
+        component={LanguageScreen}
+        options={{
+          presentation: "modal",
+          headerTitle: "Language",
+        }}
+      />
+      <Stack.Screen
+        name="Voice"
+        component={VoiceScreen}
+        options={{
+          presentation: "modal",
+          headerTitle: "Voice Settings",
         }}
       />
     </Stack.Navigator>

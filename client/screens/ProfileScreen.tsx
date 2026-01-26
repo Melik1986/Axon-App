@@ -1,15 +1,25 @@
 import React from "react";
-import { StyleSheet, View, Image, ScrollView, Pressable } from "react-native";
+import { StyleSheet, View, Image, ScrollView, Pressable, Platform, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation } from "@react-navigation/native";
 import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
 
 import { ThemedText } from "@/components/ThemedText";
 import { SettingsItem } from "@/components/SettingsItem";
 import { useSettingsStore } from "@/store/settingsStore";
 import { Colors, Spacing, BorderRadius } from "@/constants/theme";
+
+const languageNames: Record<string, string> = {
+  ru: "Русский",
+  en: "English",
+  de: "Deutsch",
+  fr: "Français",
+  es: "Español",
+  zh: "中文",
+};
 
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
@@ -17,7 +27,7 @@ export default function ProfileScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation<any>();
 
-  const { llm, erp, voice } = useSettingsStore();
+  const { llm, erp, voice, language } = useSettingsStore();
 
   const getLLMProviderLabel = () => {
     switch (llm.provider) {
@@ -32,6 +42,39 @@ export default function ProfileScreen() {
       default:
         return "Custom";
     }
+  };
+
+  const handleHaptic = () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  };
+
+  const handleNavigate = (screen: string) => {
+    handleHaptic();
+    navigation.navigate(screen);
+  };
+
+  const handleOpenHelp = async () => {
+    handleHaptic();
+    try {
+      await Linking.openURL("https://jsrvis.com/help");
+    } catch (e) {
+      console.log("Could not open help URL");
+    }
+  };
+
+  const handleOpenPrivacy = async () => {
+    handleHaptic();
+    try {
+      await Linking.openURL("https://jsrvis.com/privacy");
+    } catch (e) {
+      console.log("Could not open privacy URL");
+    }
+  };
+
+  const handleLogout = () => {
+    handleHaptic();
   };
 
   return (
@@ -49,7 +92,7 @@ export default function ProfileScreen() {
             source={require("../../assets/images/avatar-default.png")}
             style={styles.avatar}
           />
-          <Pressable style={styles.editAvatarButton}>
+          <Pressable style={styles.editAvatarButton} onPress={handleHaptic}>
             <Feather name="edit-2" size={14} color={Colors.dark.buttonText} />
           </Pressable>
         </View>
@@ -67,19 +110,19 @@ export default function ProfileScreen() {
           icon="cpu"
           title="LLM Provider"
           value={getLLMProviderLabel()}
-          onPress={() => navigation.navigate("Modal")}
+          onPress={() => handleNavigate("LLMProvider")}
         />
         <SettingsItem
           icon="terminal"
           title="Model"
           value={llm.modelName || "gpt-5.1"}
-          onPress={() => navigation.navigate("Modal")}
+          onPress={() => handleNavigate("LLMProvider")}
         />
         <SettingsItem
           icon="volume-2"
           title="Voice"
-          value={voice}
-          onPress={() => navigation.navigate("Modal")}
+          value={voice.charAt(0).toUpperCase() + voice.slice(1)}
+          onPress={() => handleNavigate("Voice")}
         />
       </View>
 
@@ -89,19 +132,19 @@ export default function ProfileScreen() {
           icon="link"
           title="System URL"
           subtitle={erp.url || "Not configured"}
-          onPress={() => navigation.navigate("Modal")}
+          onPress={() => handleNavigate("ERPSettings")}
         />
         <SettingsItem
           icon="code"
           title="API Type"
           value={erp.apiType.toUpperCase()}
-          onPress={() => navigation.navigate("Modal")}
+          onPress={() => handleNavigate("ERPSettings")}
         />
         <SettingsItem
           icon="file-text"
           title="API Specification"
           subtitle={erp.specUrl || "Not configured"}
-          onPress={() => navigation.navigate("Modal")}
+          onPress={() => handleNavigate("ERPSettings")}
         />
       </View>
 
@@ -110,8 +153,8 @@ export default function ProfileScreen() {
         <SettingsItem
           icon="globe"
           title="Language"
-          value="Russian"
-          onPress={() => navigation.navigate("Modal")}
+          value={languageNames[language] || language}
+          onPress={() => handleNavigate("Language")}
         />
         <SettingsItem
           icon="moon"
@@ -132,16 +175,16 @@ export default function ProfileScreen() {
         <SettingsItem
           icon="help-circle"
           title="Help & Support"
-          onPress={() => {}}
+          onPress={handleOpenHelp}
         />
         <SettingsItem
           icon="shield"
           title="Privacy Policy"
-          onPress={() => {}}
+          onPress={handleOpenPrivacy}
         />
       </View>
 
-      <Pressable style={styles.logoutButton}>
+      <Pressable style={styles.logoutButton} onPress={handleLogout}>
         <Feather name="log-out" size={20} color={Colors.dark.error} />
         <ThemedText style={styles.logoutText}>Sign Out</ThemedText>
       </Pressable>
