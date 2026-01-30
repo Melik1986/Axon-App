@@ -278,19 +278,23 @@ export default function ChatScreen() {
   const renderComposer = (props: ComposerProps) => (
     <Composer
       {...props}
-      textInputStyle={{
-        color: theme.text,
-        backgroundColor: theme.backgroundDefault,
-        borderRadius: BorderRadius.lg,
-        paddingHorizontal: Spacing.md,
-        paddingTop: Spacing.sm,
-        paddingBottom: Spacing.sm,
-        marginRight: Spacing.sm,
-        borderWidth: 1,
-        borderColor: theme.border,
+      textInputProps={{
+        ...props.textInputProps,
+        style: {
+          color: theme.text,
+          backgroundColor: theme.backgroundDefault,
+          borderRadius: BorderRadius.lg,
+          paddingHorizontal: Spacing.md,
+          paddingTop: Spacing.sm,
+          paddingBottom: Spacing.sm,
+          marginRight: Spacing.sm,
+          borderWidth: 1,
+          borderColor: theme.border,
+          flex: 1,
+        },
+        placeholderTextColor: theme.textTertiary,
+        placeholder: t("messageJarvis"),
       }}
-      placeholderTextColor={theme.textTertiary}
-      placeholder={t("messageJarvis") || "Сообщение Jarvis..."}
     />
   );
 
@@ -312,7 +316,7 @@ export default function ChatScreen() {
         }}
       >
         <ThemedText style={{ color: "#FFFFFF", fontWeight: "600" }}>
-          {t("send") || "→"}
+          {t("send")}
         </ThemedText>
       </View>
     </Send>
@@ -361,9 +365,6 @@ export default function ChatScreen() {
         renderChatEmpty={renderChatEmpty}
         renderChatFooter={renderChatFooter}
         isTyping={isTyping}
-        alwaysShowSend
-        scrollToBottom
-        infiniteScroll
         inverted={true}
         listViewProps={{
           contentContainerStyle: {
