@@ -87,6 +87,8 @@ export const translations = {
     confirmDelete: "Delete this chat?",
     cancel: "Cancel",
     delete: "Delete",
+    welcomeMessage: "Hello! I'm Jarvis, your AI assistant for 1C. Ask me about inventory, products, or creating documents.",
+    send: "Send",
   },
   ru: {
     appName: "JSRVIS",
@@ -173,6 +175,8 @@ export const translations = {
     confirmDelete: "Удалить этот чат?",
     cancel: "Отмена",
     delete: "Удалить",
+    welcomeMessage: "Привет! Я Jarvis, ваш AI-ассистент для 1С. Спросите меня об остатках, товарах или создании документов.",
+    send: "Отправить",
   },
   de: {
     appName: "JSRVIS",
@@ -259,6 +263,8 @@ export const translations = {
     confirmDelete: "Diesen Chat löschen?",
     cancel: "Abbrechen",
     delete: "Löschen",
+    welcomeMessage: "Hallo! Ich bin Jarvis, Ihr KI-Assistent für 1C. Fragen Sie mich zu Bestand, Produkten oder Dokumentenerstellung.",
+    send: "Senden",
   },
   fr: {
     appName: "JSRVIS",
@@ -345,6 +351,8 @@ export const translations = {
     confirmDelete: "Supprimer ce chat?",
     cancel: "Annuler",
     delete: "Supprimer",
+    welcomeMessage: "Bonjour! Je suis Jarvis, votre assistant IA pour 1C. Demandez-moi des stocks, produits ou création de documents.",
+    send: "Envoyer",
   },
   es: {
     appName: "JSRVIS",
@@ -431,6 +439,8 @@ export const translations = {
     confirmDelete: "¿Eliminar este chat?",
     cancel: "Cancelar",
     delete: "Eliminar",
+    welcomeMessage: "¡Hola! Soy Jarvis, tu asistente de IA para 1C. Pregúntame sobre inventario, productos o creación de documentos.",
+    send: "Enviar",
   },
   zh: {
     appName: "JSRVIS",
@@ -517,6 +527,8 @@ export const translations = {
     confirmDelete: "删除此聊天？",
     cancel: "取消",
     delete: "删除",
+    welcomeMessage: "您好！我是Jarvis，您的1C AI助手。询问我关于库存、产品或创建文档。",
+    send: "发送",
   },
 };
 
