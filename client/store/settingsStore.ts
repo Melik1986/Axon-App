@@ -10,12 +10,16 @@ interface LLMSettings {
   provider: "replit" | "openai" | "ollama" | "groq" | "custom";
 }
 
+export type ERPProvider = "demo" | "1c" | "sap" | "odoo" | "custom";
+
 interface ERPSettings {
+  provider: ERPProvider;
   url: string;
   apiType: "rest" | "odata" | "graphql";
+  username: string;
+  password: string;
   apiKey: string;
   specUrl: string;
-  preset: string;
 }
 
 interface SettingsState {
@@ -40,11 +44,13 @@ const defaultLLM: LLMSettings = {
 };
 
 const defaultERP: ERPSettings = {
+  provider: "demo",
   url: "",
-  apiType: "rest",
+  apiType: "odata",
+  username: "",
+  password: "",
   apiKey: "",
   specUrl: "",
-  preset: "",
 };
 
 export const useSettingsStore = create<SettingsState>()(

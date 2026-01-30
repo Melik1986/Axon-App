@@ -1,13 +1,14 @@
 import type { Express, Request, Response } from "express";
 import OpenAI from "openai";
 import { chatStorage } from "./storage";
-import { onesService } from "../../modules/ones";
+import { onesService, type ERPConfig } from "../../modules/ones";
 import { ragService } from "../../modules/rag";
 import { llmService, type LLMSettings } from "../../modules/llm";
 
 interface ChatRequestBody {
   content: string;
   llmSettings?: LLMSettings;
+  erpSettings?: ERPConfig;
 }
 
 function getOpenAIClient(llmSettings?: LLMSettings): OpenAI {
@@ -122,12 +123,13 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
 async function executeToolCall(
   toolName: string,
   args: Record<string, unknown>,
+  erpConfig?: ERPConfig,
 ): Promise<string> {
   try {
     switch (toolName) {
       case "get_stock": {
         const productName = args.product_name as string;
-        const stock = await onesService.getStock(productName);
+        const stock = await onesService.getStock(productName, erpConfig);
         if (stock.length === 0) {
           return `Товары по запросу "${productName}" не найдены.`;
         }
@@ -142,7 +144,7 @@ async function executeToolCall(
 
       case "get_products": {
         const filter = args.filter as string | undefined;
-        const products = await onesService.getProducts(filter);
+        const products = await onesService.getProducts(filter, erpConfig);
         if (products.length === 0) {
           return filter
             ? `Товары по запросу "${filter}" не найдены.`
@@ -177,7 +179,7 @@ async function executeToolCall(
           customerName: args.customer_name as string,
           items,
           comment: args.comment as string,
-        });
+        }, erpConfig);
 
         return `Документ создан:\n• Номер: ${invoice.number}\n• Дата: ${new Date(invoice.date).toLocaleDateString("ru-RU")}\n• Покупатель: ${invoice.customerName}\n• Сумма: ${invoice.total} ₽\n• Статус: ${invoice.status === "draft" ? "Черновик" : "Проведён"}`;
       }
@@ -251,7 +253,7 @@ export function registerChatRoutes(app: Express): void {
     async (req: Request, res: Response) => {
       try {
         const conversationId = parseInt(req.params.id as string);
-        const { content, llmSettings } = req.body as ChatRequestBody;
+        const { content, llmSettings, erpSettings } = req.body as ChatRequestBody;
 
         const openai = getOpenAIClient(llmSettings);
         const modelName = getModelName(llmSettings);
@@ -370,7 +372,7 @@ export function registerChatRoutes(app: Express): void {
 
           for (const toolCall of toolCallsToProcess) {
             const args = JSON.parse(toolCall.function.arguments || "{}");
-            const result = await executeToolCall(toolCall.function.name, args);
+            const result = await executeToolCall(toolCall.function.name, args, erpSettings);
 
             // Send tool execution notification to client
             res.write(

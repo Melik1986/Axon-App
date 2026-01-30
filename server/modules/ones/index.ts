@@ -5,4 +5,6 @@ export type {
   InvoiceDto,
   Product,
   OnesConfig,
+  ERPConfig,
+  ERPProvider,
 } from "./ones.types";

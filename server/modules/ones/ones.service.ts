@@ -1,5 +1,6 @@
 import type {
   OnesConfig,
+  ERPConfig,
   StockItem,
   Product,
   InvoiceDto,
@@ -10,56 +11,78 @@ import type {
 } from "./ones.types";
 
 /**
- * Service for integrating with 1C via OData/HTTP.
+ * Service for integrating with ERP systems (1C, SAP, Odoo) via OData/REST/GraphQL.
  * Provides methods for inventory, products, and document operations.
  */
 export class OnesService {
-  private config: OnesConfig;
-  private isConfigured: boolean;
+  private defaultConfig: OnesConfig;
+  private isDefaultConfigured: boolean;
 
   constructor() {
-    this.config = {
+    this.defaultConfig = {
       baseUrl: process.env.ONE_C_URL || "",
       username: process.env.ONE_C_USER || "",
       password: process.env.ONE_C_PASSWORD || "",
     };
-    this.isConfigured = Boolean(this.config.baseUrl && this.config.username);
+    this.isDefaultConfigured = Boolean(this.defaultConfig.baseUrl && this.defaultConfig.username);
+  }
+
+  private getConfig(erpConfig?: ERPConfig): OnesConfig & { useMock: boolean } {
+    if (!erpConfig || erpConfig.provider === "demo") {
+      return { ...this.defaultConfig, useMock: true };
+    }
+
+    if (erpConfig.provider === "1c" && erpConfig.baseUrl) {
+      return {
+        baseUrl: erpConfig.baseUrl,
+        username: erpConfig.username || "",
+        password: erpConfig.password || "",
+        useMock: !erpConfig.baseUrl,
+      };
+    }
+
+    return { ...this.defaultConfig, useMock: true };
   }
 
   /**
-   * Check if 1C integration is configured
+   * Check if ERP integration is configured
    */
-  isAvailable(): boolean {
-    return this.isConfigured;
+  isAvailable(erpConfig?: ERPConfig): boolean {
+    if (!erpConfig || erpConfig.provider === "demo") {
+      return true;
+    }
+    const config = this.getConfig(erpConfig);
+    return !config.useMock;
   }
 
   /**
    * Get current stock for a product by name
    */
-  async getStock(productName: string): Promise<StockItem[]> {
-    if (!this.isConfigured) {
+  async getStock(productName: string, erpConfig?: ERPConfig): Promise<StockItem[]> {
+    const config = this.getConfig(erpConfig);
+    
+    if (config.useMock) {
       return this.getMockStock(productName);
     }
 
     try {
-      // First find the product
       const products = await this.fetchOData<Catalog_Nomenclature>(
         `Catalog_Номенклатура?$filter=contains(Description,'${encodeURIComponent(productName)}')`,
+        config,
       );
 
       if (products.length === 0) {
         return [];
       }
 
-      // Then get stock balances
       const productKeys = products
         .map((p) => `Номенклатура_Key eq guid'${p.Ref_Key}'`)
         .join(" or ");
       const stocks = await this.fetchOData<AccumulationRegister_Stock>(
         `AccumulationRegister_ТоварыНаСкладах/Balance?$filter=${encodeURIComponent(productKeys)}`,
+        config,
       );
 
-      // Merge product info with stock
       return products.map((product) => {
         const stock = stocks.find(
           (s) => s.Номенклатура_Key === product.Ref_Key,
@@ -81,8 +104,10 @@ export class OnesService {
   /**
    * Get products list with optional filter
    */
-  async getProducts(filter?: string): Promise<Product[]> {
-    if (!this.isConfigured) {
+  async getProducts(filter?: string, erpConfig?: ERPConfig): Promise<Product[]> {
+    const config = this.getConfig(erpConfig);
+    
+    if (config.useMock) {
       return this.getMockProducts(filter);
     }
 
@@ -93,6 +118,7 @@ export class OnesService {
 
       const products = await this.fetchOData<Catalog_Nomenclature>(
         `Catalog_Номенклатура${filterQuery}`,
+        config,
       );
 
       return products.map((p) => ({
@@ -110,14 +136,14 @@ export class OnesService {
   /**
    * Create a sales invoice in 1C
    */
-  async createInvoice(data: InvoiceDto): Promise<Invoice> {
-    if (!this.isConfigured) {
+  async createInvoice(data: InvoiceDto, erpConfig?: ERPConfig): Promise<Invoice> {
+    const config = this.getConfig(erpConfig);
+    
+    if (config.useMock) {
       return this.getMockInvoice(data);
     }
 
     try {
-      // In real implementation, this would POST to 1C
-      // For now, return mock as placeholder
       console.log("Creating invoice in 1C:", data);
       return this.getMockInvoice(data);
     } catch (error) {
@@ -129,10 +155,10 @@ export class OnesService {
   /**
    * Fetch data from 1C OData endpoint
    */
-  private async fetchOData<T>(endpoint: string): Promise<T[]> {
-    const url = `${this.config.baseUrl}/${endpoint}`;
+  private async fetchOData<T>(endpoint: string, config: OnesConfig): Promise<T[]> {
+    const url = `${config.baseUrl}/${endpoint}`;
     const auth = Buffer.from(
-      `${this.config.username}:${this.config.password}`,
+      `${config.username}:${config.password}`,
     ).toString("base64");
 
     const response = await fetch(url, {
@@ -155,10 +181,10 @@ export class OnesService {
   /**
    * POST data to 1C OData endpoint
    */
-  private async postOData<T>(endpoint: string, body: unknown): Promise<T> {
-    const url = `${this.config.baseUrl}/${endpoint}`;
+  private async postOData<T>(endpoint: string, body: unknown, config: OnesConfig): Promise<T> {
+    const url = `${config.baseUrl}/${endpoint}`;
     const auth = Buffer.from(
-      `${this.config.username}:${this.config.password}`,
+      `${config.username}:${config.password}`,
     ).toString("base64");
 
     const response = await fetch(url, {

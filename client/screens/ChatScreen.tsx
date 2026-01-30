@@ -25,6 +25,7 @@ export default function ChatScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const llmSettings = useSettingsStore((state) => state.llm);
+  const erpSettings = useSettingsStore((state) => state.erp);
 
   const [inputText, setInputText] = React.useState("");
   const [isRecording, setIsRecording] = React.useState(false);
@@ -95,6 +96,14 @@ export default function ChatScreen() {
               baseUrl: llmSettings.baseUrl,
               apiKey: llmSettings.apiKey,
               modelName: llmSettings.modelName,
+            },
+            erpSettings: {
+              provider: erpSettings.provider,
+              baseUrl: erpSettings.url,
+              username: erpSettings.username,
+              password: erpSettings.password,
+              apiKey: erpSettings.apiKey,
+              apiType: erpSettings.apiType,
             },
           }),
         }

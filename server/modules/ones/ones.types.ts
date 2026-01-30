@@ -2,6 +2,17 @@
  * Types for 1C OData integration
  */
 
+export type ERPProvider = "demo" | "1c" | "sap" | "odoo" | "custom";
+
+export interface ERPConfig {
+  provider: ERPProvider;
+  baseUrl: string;
+  username?: string;
+  password?: string;
+  apiKey?: string;
+  apiType?: "rest" | "odata" | "graphql";
+}
+
 export interface OnesConfig {
   baseUrl: string;
   username: string;
