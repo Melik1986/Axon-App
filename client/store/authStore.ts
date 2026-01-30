@@ -5,16 +5,17 @@ import { getApiUrl } from "@/lib/query-client";
 
 export interface User {
   id: string;
-  phone?: string;
-  email?: string;
-  created_at: string;
+  email: string;
+  name?: string | null;
+  picture?: string | null;
+  googleId?: string | null;
 }
 
 export interface Session {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-  expires_at?: number;
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  expiresAt?: number;
 }
 
 interface AuthState {
@@ -23,18 +24,14 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
 
-  // Actions
-  signInWithOtp: (
-    phone: string,
-  ) => Promise<{ success: boolean; error?: string }>;
-  verifyOtp: (
-    phone: string,
-    token: string,
+  signInWithGoogle: (
+    idToken: string,
   ) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
   setSession: (session: Session | null) => void;
   setUser: (user: User | null) => void;
+  getAccessToken: () => string | null;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -45,45 +42,24 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isAuthenticated: false,
 
-      signInWithOtp: async (phone: string) => {
+      signInWithGoogle: async (idToken: string) => {
         set({ isLoading: true });
         try {
           const baseUrl = getApiUrl();
-          const response = await fetch(`${baseUrl}api/auth/otp/send`, {
+          const response = await fetch(`${baseUrl}api/auth/google`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone }),
-          });
-
-          const data = await response.json();
-          set({ isLoading: false });
-
-          if (data.success) {
-            return { success: true };
-          }
-          return { success: false, error: data.error || "Failed to send OTP" };
-        } catch {
-          set({ isLoading: false });
-          return { success: false, error: "Network error" };
-        }
-      },
-
-      verifyOtp: async (phone: string, token: string) => {
-        set({ isLoading: true });
-        try {
-          const baseUrl = getApiUrl();
-          const response = await fetch(`${baseUrl}api/auth/otp/verify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ phone, token }),
+            body: JSON.stringify({ idToken }),
           });
 
           const data = await response.json();
 
           if (data.success && data.session) {
             const session: Session = {
-              ...data.session,
-              expires_at: Date.now() + data.session.expires_in * 1000,
+              accessToken: data.session.accessToken,
+              refreshToken: data.session.refreshToken,
+              expiresIn: data.session.expiresIn,
+              expiresAt: Date.now() + data.session.expiresIn * 1000,
             };
             set({
               user: data.user,
@@ -95,14 +71,27 @@ export const useAuthStore = create<AuthState>()(
           }
 
           set({ isLoading: false });
-          return { success: false, error: data.error || "Invalid OTP" };
-        } catch {
+          return { success: false, error: data.message || data.error || "Authentication failed" };
+        } catch (error) {
           set({ isLoading: false });
           return { success: false, error: "Network error" };
         }
       },
 
       signOut: async () => {
+        const { session } = get();
+        if (session?.refreshToken) {
+          try {
+            const baseUrl = getApiUrl();
+            await fetch(`${baseUrl}api/auth/logout`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ refreshToken: session.refreshToken }),
+            });
+          } catch {
+            // Ignore logout errors
+          }
+        }
         set({
           user: null,
           session: null,
@@ -112,28 +101,29 @@ export const useAuthStore = create<AuthState>()(
 
       refreshSession: async () => {
         const { session } = get();
-        if (!session?.refresh_token) return false;
+        if (!session?.refreshToken) return false;
 
         try {
           const baseUrl = getApiUrl();
           const response = await fetch(`${baseUrl}api/auth/refresh`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refresh_token: session.refresh_token }),
+            body: JSON.stringify({ refreshToken: session.refreshToken }),
           });
 
           const data = await response.json();
 
           if (data.success && data.session) {
             const newSession: Session = {
-              ...data.session,
-              expires_at: Date.now() + data.session.expires_in * 1000,
+              accessToken: data.session.accessToken,
+              refreshToken: data.session.refreshToken,
+              expiresIn: data.session.expiresIn,
+              expiresAt: Date.now() + data.session.expiresIn * 1000,
             };
             set({ session: newSession, user: data.user || get().user });
             return true;
           }
 
-          // Refresh failed, sign out
           get().signOut();
           return false;
         } catch {
@@ -143,9 +133,10 @@ export const useAuthStore = create<AuthState>()(
 
       setSession: (session) => set({ session, isAuthenticated: !!session }),
       setUser: (user) => set({ user }),
+      getAccessToken: () => get().session?.accessToken || null,
     }),
     {
-      name: "jsrvis-auth",
+      name: "axon-auth",
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         user: state.user,
