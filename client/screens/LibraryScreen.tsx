@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -192,39 +192,39 @@ function CloseIcon({
   );
 }
 
-const categories: KnowledgeCategory[] = [
+const getCategoriesData = (t: (key: any) => string): KnowledgeCategory[] => [
   {
     id: "1",
-    title: "Getting Started",
-    description: "Learn the basics of using Jarvis",
+    title: t("gettingStarted"),
+    description: t("gettingStartedDesc"),
     icon: "book",
     articleCount: 5,
   },
   {
     id: "2",
-    title: "Voice Commands",
-    description: "Master voice interactions",
+    title: t("voiceCommands"),
+    description: t("voiceCommandsDesc"),
     icon: "mic",
     articleCount: 12,
   },
   {
     id: "3",
-    title: "Document Scanning",
-    description: "Scan invoices and receipts",
+    title: t("documentScanning"),
+    description: t("documentScanningDesc"),
     icon: "camera",
     articleCount: 8,
   },
   {
     id: "4",
-    title: "ERP Integration",
-    description: "Connect to your business systems",
+    title: t("erpIntegration"),
+    description: t("erpIntegrationDesc"),
     icon: "link",
     articleCount: 15,
   },
   {
     id: "5",
-    title: "Reports & Analytics",
-    description: "Generate business insights",
+    title: t("reportsAnalytics"),
+    description: t("reportsAnalyticsDesc"),
     icon: "chart",
     articleCount: 10,
   },
@@ -236,8 +236,13 @@ export default function LibraryScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
 
+  const categories = getCategoriesData(t);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredCategories, setFilteredCategories] = useState(categories);
+  const [filteredCategories, setFilteredCategories] = useState<KnowledgeCategory[]>([]);
+
+  useEffect(() => {
+    setFilteredCategories(categories);
+  }, [t]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);

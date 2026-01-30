@@ -72,8 +72,7 @@ export default function RAGSettingsScreen() {
         <ThemedText
           style={[styles.sectionDescription, { color: theme.textSecondary }]}
         >
-          {t("ragSettingsDesc") ||
-            "Configure your knowledge base for context-aware AI responses"}
+          {t("ragConfigDesc")}
         </ThemedText>
 
         <View style={styles.providerList}>
@@ -135,7 +134,7 @@ export default function RAGSettingsScreen() {
           <ThemedText
             style={[styles.sectionTitle, { color: theme.textTertiary }]}
           >
-            {t("qdrantSettings") || "QDRANT SETTINGS"}
+            {t("ragSettings").toUpperCase()}
           </ThemedText>
 
           <View style={styles.inputGroup}>
