@@ -1,122 +1,97 @@
-# JSRVIS 1C Mobile
+# 🧞‍♂️ Jarvis-App: Universal AI ERP OS
 
-## Overview
+**Replit Mobile Buildathon Edition**
 
-JSRVIS is a mobile AI assistant application designed to transform unstructured input (voice, photos, chat) into structured business commands for 1C ERP systems. The app provides a conversational interface that replaces complex enterprise software navigation, allowing users to interact with their business systems through natural language, voice commands, and document scanning.
+> **One Codebase, Infinite Possibilities.**
+> Built on the **Replit Native Stack**: React Native (Expo) + Express + PostgreSQL + OpenAI.
 
-The project follows a monorepo structure with an Expo React Native mobile client and an Express.js backend server, sharing types and schemas between them.
+---
 
-## User Preferences
+## 📖 Overview
 
-Preferred communication style: Simple, everyday language.
+**Jarvis-App** is a game-changing AI agent that bridges the gap between complex ERP systems (like 1C, SAP, Odoo) and the people who use them.
 
-## System Architecture
+Instead of navigating through endless menus, users can simply:
+*   🗣️ **Speak**: "Order 50 more units of Coffee Beans."
+*   📸 **Show**: Snap a photo of an invoice to auto-create a receipt.
+*   💬 **Chat**: Ask "What is our current revenue?" and get an instant, data-backed answer.
 
-### Frontend Architecture
-- **Framework**: Expo SDK 54 with React Native 0.81
-- **Navigation**: React Navigation with native stack and bottom tab navigators
-- **State Management**: Zustand with AsyncStorage persistence for settings and chat state
-- **Data Fetching**: TanStack React Query for server state
-- **Styling**: Custom theme system with dark mode focus, using constants for colors, spacing, and typography
-- **Animations**: React Native Reanimated for smooth UI interactions
+We leverage the **AI Adapter Pattern** to translate natural language into structured API calls using OpenAPI specifications, making enterprise software accessible to everyone.
 
-**Key Design Decisions**:
-- Dark theme primary aesthetic inspired by high-end voice assistants
-- Tab-based navigation with 4 main sections: Chat, Library, History, Profile
-- Modular screen stack navigators wrapped in tab navigator
-- Path aliases (`@/` for client, `@shared/` for shared code) via Babel module-resolver
+---
 
-### Backend Architecture
-- **Framework**: Express.js 5 with TypeScript
-- **Database ORM**: Drizzle ORM with PostgreSQL
-- **AI Integration**: OpenAI SDK configured for Replit AI Integrations (custom base URL)
-- **Build Tool**: esbuild for production server bundling
+## 🏗️ System Architecture
 
-**API Structure**:
-- RESTful endpoints under `/api/` prefix
-- Streaming SSE support for real-time chat responses
-- Audio processing routes for voice transcription (Whisper) and text-to-speech
-- Image generation routes using gpt-image-1 model
+Our architecture is designed for speed, scalability, and "Write Once, Run Everywhere" capability.
 
-**Key Design Decisions**:
-- Separation of concerns with dedicated route modules (chat, audio, image)
-- Storage abstraction layer (`IChatStorage` interface) for database operations
-- CORS configuration supports Replit domains and localhost for development
+### 📱 Frontend (Mobile & Web)
+*   **Core**: [Expo SDK 54](https://expo.dev) + [React Native 0.81](https://reactnative.dev)
+*   **Navigation**: React Navigation v7 (Native Stack & Bottom Tabs)
+*   **State**: Zustand (Store) + TanStack Query (Server State)
+*   **UI/UX**:
+    *   **React Native Reanimated**: Buttery smooth 60fps animations.
+    *   **Blur & Glassmorphism**: Modern, high-end aesthetic.
+    *   **Haptics**: Tactile feedback for every interaction.
+*   **Local-First**: `AsyncStorage` for offline capability.
 
-### Shared Layer
-- **Location**: `/shared` directory
-- **Contents**: Database schemas (Drizzle), Zod validation schemas, TypeScript types
-- **Purpose**: Type-safe contract between client and server
+### ⚡ Backend (Server)
+*   **Runtime**: Node.js + Express 5.0 (TypeScript)
+*   **Database**: PostgreSQL (via Supabase)
+*   **ORM**: Drizzle ORM (Type-safe SQL)
+*   **AI Engine**:
+    *   **OpenAI SDK**: GPT-4o for reasoning.
+    *   **Whisper**: For lightning-fast voice transcription.
+    *   **DALL-E 3**: For visual generation.
+*   **Real-time**: Server-Sent Events (SSE) for streaming AI responses.
 
-### Data Storage
-- **Primary Database**: PostgreSQL via Drizzle ORM
-- **Schema**: Users, Conversations, Messages tables with proper relationships
-- **Client Storage**: AsyncStorage for persisted settings (LLM provider, ERP connection, language preferences)
+### 🔗 Shared Layer (The Monorepo Magic)
+*   Located in `/shared`.
+*   **Single Source of Truth**: Zod schemas and TypeScript interfaces shared between Client and Server.
+*   **Zero Desync**: API contracts are enforced at compile time.
 
-## External Dependencies
+---
 
-### AI Services
-- **Replit AI Integrations**: Primary LLM provider (OpenAI-compatible API)
-  - Chat completions with streaming
-  - Whisper for speech-to-text
-  - Text-to-speech for voice responses
-  - Image generation (gpt-image-1)
-- **BYO-LLM Support**: Configurable to use OpenAI, Ollama, Groq, or custom OpenAI-compatible endpoints
+## 🔌 Integration & Features
 
-### Database
-- **PostgreSQL**: Required for production; connection via `DATABASE_URL` environment variable
-- **Drizzle Kit**: Schema migrations stored in `/migrations`
+### 🧠 The AI Adapter (MCP)
+We don't hardcode ERP logic. We use **Model Context Protocol (MCP)** principles:
+1.  **Ingest**: Load any OpenAPI/Swagger spec (e.g., 1C OData, SAP).
+2.  **Map**: The LLM understands the API structure dynamically.
+3.  **Execute**: User intent is translated into precise API calls.
 
-### Mobile Platform Services
-- **expo-av**: Audio recording for voice input
-- **expo-camera**: Document scanning capabilities
-- **expo-image-picker**: Photo selection for document analysis
-- **expo-haptics**: Tactile feedback on interactions
+### 🌍 Universal Access
+*   **Multi-Model Support (BYO-LLM)**: Switch between OpenAI, Anthropic (Claude), Groq, or local Ollama models.
+*   **Polyglot**: Full localization in 6 languages (EN, RU, DE, ES, FR, ZH).
+*   **Themeable**: Automatic Dark/Light mode syncing with system settings.
 
-### Environment Variables Required
-- `DATABASE_URL`: PostgreSQL connection string
-- `AI_INTEGRATIONS_OPENAI_API_KEY`: API key for Replit AI
-- `AI_INTEGRATIONS_OPENAI_BASE_URL`: Base URL for AI integrations
-- `EXPO_PUBLIC_DOMAIN`: Public domain for API calls from client
-- `REPLIT_DEV_DOMAIN`: Development domain (auto-set by Replit)
+### 🛡️ Enterprise Ready
+*   **Security**: Secure storage for API keys and credentials.
+*   **Performance**: Optimistic updates and offline caching.
+*   **Scalability**: Stateless backend design ready for serverless deployment.
 
-### Build & Development
-- **Metro**: React Native bundler with custom configuration for Hermes
-- **tsx**: TypeScript execution for development server
-- **Prettier + ESLint**: Code formatting and linting with Expo config
+---
 
-## Recent Changes
+## 🛠️ Development & Deployment
 
-### Internationalization (i18n)
-- Full localization system with 6 languages: Russian (ru), English (en), German (de), French (es), Spanish (es), Chinese (zh)
-- Translation system in `client/i18n/translations.ts` with type-safe TranslationKey
-- `useTranslation` hook for accessing translations in components
-- Language selection screen with visual checkmarks
+### Environment Setup
+The project requires the following keys in Replit Secrets or `.env`:
+*   `DATABASE_URL`: Connection string for PostgreSQL.
+*   `OPENAI_API_KEY`: For AI reasoning capabilities.
+*   `EXPO_PUBLIC_DOMAIN`: Public URL for the backend.
 
-### Theming
-- Light and dark theme support with complete color palette in `client/constants/theme.ts`
-- `useTheme` hook for dynamic theme switching
-- Theme toggle in Profile screen with sun/moon icons
-- Theme state persisted in settingsStore via AsyncStorage
+### Commands
+*   `npm run expo:dev`: Start the mobile development server.
+*   `npm run server:dev`: Start the backend server with hot-reload.
+*   `npm run db:push`: Push Drizzle schema changes to the database.
 
-### LLM Provider Settings
-- Model picker with dropdown showing provider-specific models:
-  - Replit AI: gpt-4o, gpt-4o-mini, claude-3.5-sonnet, claude-3-haiku
-  - OpenAI: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo, o1-preview, o1-mini
-  - Ollama: llama3.2, llama3.1, mistral, codellama, phi3, gemma2
-  - Groq: llama-3.3-70b-versatile, llama-3.1-8b-instant, mixtral-8x7b-32768
-  - Custom: OpenAI-compatible endpoint support
+---
 
-### History Screen
-- Swipe-to-delete functionality for chat history using react-native-gesture-handler
-- Delete confirmation with platform-specific alert/confirm
-- Animated swipe gesture with Reanimated
+## 🏆 Replit Mobile Buildathon
 
-### Custom SVG Icons
-- AnimatedSunIcon, AnimatedMoonIcon for theme toggle
-- AnimatedTrashIcon for delete action
-- All icons in `client/components/AnimatedIcons.tsx`
+This project demonstrates the power of the **Replit Ecosystem**:
+1.  **Coded on Replit**: Developed entirely in the cloud IDE.
+2.  **Deployed on Replit**: Backend hosted with instant deployment.
+3.  **Built for Mobile**: Native iOS and Android apps from a single Replit project.
 
-### Keyboard Handling
-- KeyboardAwareScrollView from react-native-keyboard-controller in settings screens
-- Proper bottomOffset to prevent keyboard from hiding input fields
+**Team**: Jarvis-App Core
+**Status**: 🚀 Production Ready
