@@ -3,11 +3,29 @@ import OpenAI from "openai";
 import { chatStorage } from "./storage";
 import { onesService } from "../../modules/ones";
 import { ragService } from "../../modules/rag";
+import { llmService, type LLMSettings } from "../../modules/llm";
 
-const openai = new OpenAI({
-  apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
-});
+interface ChatRequestBody {
+  content: string;
+  llmSettings?: LLMSettings;
+}
+
+function getOpenAIClient(llmSettings?: LLMSettings): OpenAI {
+  if (llmSettings && llmSettings.provider !== "replit") {
+    return llmService.createClient(llmSettings);
+  }
+  return new OpenAI({
+    apiKey: process.env.AI_INTEGRATIONS_OPENAI_API_KEY,
+    baseURL: process.env.AI_INTEGRATIONS_OPENAI_BASE_URL,
+  });
+}
+
+function getModelName(llmSettings?: LLMSettings): string {
+  if (llmSettings) {
+    return llmService.getModel(llmSettings);
+  }
+  return "gpt-4o";
+}
 
 // System prompt for Jarvis AI assistant
 const SYSTEM_PROMPT = `Ты — Jarvis, AI-ассистент для управления бизнес-процессами в 1С.
@@ -233,7 +251,10 @@ export function registerChatRoutes(app: Express): void {
     async (req: Request, res: Response) => {
       try {
         const conversationId = parseInt(req.params.id as string);
-        const { content } = req.body;
+        const { content, llmSettings } = req.body as ChatRequestBody;
+
+        const openai = getOpenAIClient(llmSettings);
+        const modelName = getModelName(llmSettings);
 
         // Save user message
         await chatStorage.createMessage(conversationId, "user", content);
@@ -280,7 +301,7 @@ export function registerChatRoutes(app: Express): void {
 
         // First completion - may include tool calls
         const firstCompletion = await openai.chat.completions.create({
-          model: "gpt-4o",
+          model: modelName,
           messages: chatMessages,
           tools,
           tool_choice: "auto",
@@ -383,7 +404,7 @@ export function registerChatRoutes(app: Express): void {
             ];
 
           const secondCompletion = await openai.chat.completions.create({
-            model: "gpt-4o",
+            model: modelName,
             messages: messagesWithToolResults,
             stream: true,
             max_completion_tokens: 2048,

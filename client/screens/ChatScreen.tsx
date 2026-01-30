@@ -11,6 +11,7 @@ import { ChatBubble } from "@/components/ChatBubble";
 import { EmptyState } from "@/components/EmptyState";
 import { VoiceButton } from "@/components/VoiceButton";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
@@ -23,6 +24,7 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const llmSettings = useSettingsStore((state) => state.llm);
 
   const [inputText, setInputText] = React.useState("");
   const [isRecording, setIsRecording] = React.useState(false);
@@ -86,7 +88,15 @@ export default function ChatScreen() {
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: userMessage.content }),
+          body: JSON.stringify({
+            content: userMessage.content,
+            llmSettings: {
+              provider: llmSettings.provider,
+              baseUrl: llmSettings.baseUrl,
+              apiKey: llmSettings.apiKey,
+              modelName: llmSettings.modelName,
+            },
+          }),
         }
       );
 
