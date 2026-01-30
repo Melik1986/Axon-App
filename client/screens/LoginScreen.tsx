@@ -98,6 +98,27 @@ export default function LoginScreen() {
 
   const loading = isLoading || isSigningIn;
 
+  const handleDevLogin = async () => {
+    setIsSigningIn(true);
+    const { setUser, setSession } = useAuthStore.getState();
+    setUser({
+      id: "dev-user-1",
+      email: "dev@axon.local",
+      name: "Dev User",
+      picture: null,
+      googleId: null,
+    });
+    setSession({
+      accessToken: "dev-token",
+      refreshToken: "dev-refresh-token",
+      expiresIn: 3600,
+      expiresAt: Date.now() + 3600 * 1000,
+    });
+    setIsSigningIn(false);
+  };
+
+  const isDev = __DEV__ || !GOOGLE_CLIENT_ID_WEB;
+
   return (
     <LinearGradient
       colors={isDark ? ["#0A0E1A", "#1A1F2E", "#0A0E1A"] : ["#F8FAFC", "#E2E8F0", "#F8FAFC"]}
@@ -157,6 +178,21 @@ export default function LoginScreen() {
               </>
             )}
           </Pressable>
+
+          {isDev ? (
+            <Pressable
+              style={({ pressed }) => [
+                styles.devButton,
+                { opacity: pressed ? 0.8 : 1, backgroundColor: colors.primary },
+              ]}
+              onPress={handleDevLogin}
+              disabled={loading}
+              testID="button-dev-signin"
+            >
+              <Feather name="code" size={18} color="#FFF" />
+              <Text style={styles.googleButtonText}>Continue as Dev User</Text>
+            </Pressable>
+          ) : null}
 
           <Text style={[styles.termsText, { color: colors.textSecondary }]}>
             {t("termsAgreement")}
@@ -263,6 +299,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     borderRadius: BorderRadius.lg,
     gap: Spacing.md,
+  },
+  devButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+    borderRadius: BorderRadius.lg,
+    gap: Spacing.sm,
   },
   buttonDisabled: {
     opacity: 0.6,

@@ -23,6 +23,7 @@ import {
   AnimatedMoonIcon,
 } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useAuthStore } from "@/store/authStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
@@ -45,6 +46,7 @@ export default function ProfileScreen() {
   const { t } = useTranslation();
 
   const { llm, erp, rag, voice, language } = useSettingsStore();
+  const { user, signOut } = useAuthStore();
 
   const getLLMProviderLabel = () => {
     switch (llm.provider) {
@@ -95,8 +97,9 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     handleHaptic();
+    await signOut();
   };
 
   return (
@@ -114,7 +117,7 @@ export default function ProfileScreen() {
       <View style={styles.profileHeader}>
         <View style={styles.avatarContainer}>
           <Image
-            source={require("../../assets/images/avatar-default.png")}
+            source={user?.picture ? { uri: user.picture } : require("../../assets/images/avatar-default.png")}
             style={[styles.avatar, { borderColor: theme.primary }]}
           />
           <Pressable
@@ -131,12 +134,12 @@ export default function ProfileScreen() {
           </Pressable>
         </View>
         <ThemedText type="h3" style={[styles.userName, { color: theme.text }]}>
-          {t("user")}
+          {user?.name || t("user")}
         </ThemedText>
         <ThemedText
           style={[styles.userSubtitle, { color: theme.textSecondary }]}
         >
-          {t("enterprise")}
+          {user?.email || t("enterprise")}
         </ThemedText>
       </View>
 
