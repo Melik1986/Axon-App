@@ -36,3 +36,14 @@ export interface RagSettingsRequest {
     collectionName: string;
   };
 }
+
+export interface DocumentMetadata {
+  id: string;
+  name: string;
+  type: "pdf" | "txt" | "docx" | "xlsx" | "other";
+  size: string;
+  uploadedAt: Date;
+  status: "indexed" | "processing" | "error";
+  chunkCount?: number;
+  errorMessage?: string;
+}

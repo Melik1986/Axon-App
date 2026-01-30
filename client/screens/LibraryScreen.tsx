@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -7,12 +7,15 @@ import {
   Pressable,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import Svg, { Path, Circle, Rect } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { File } from "expo-file-system";
 
 import {
   AnimatedSearchIcon,
@@ -23,6 +26,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
+import { getApiUrl, apiRequest } from "@/lib/query-client";
 
 interface Document {
   id: string;
@@ -174,28 +178,60 @@ function CloseIcon({
   );
 }
 
-const mockDocuments: Document[] = [];
-
 export default function LibraryScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
 
-  const [documents, setDocuments] = useState<Document[]>(mockDocuments);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredDocuments, setFilteredDocuments] = useState<Document[]>(documents);
+
+  const { data: documents = [], isLoading, refetch } = useQuery<Document[]>({
+    queryKey: ["/api/documents"],
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: DocumentPicker.DocumentPickerAsset) => {
+      const formData = new FormData();
+      const fileObj = new File(file.uri);
+      formData.append("file", fileObj as any);
+      formData.append("name", file.name);
+
+      const response = await fetch(new URL("/api/documents/upload", getApiUrl()).toString(), {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/documents/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
+    },
+  });
+
+  const filteredDocuments = useMemo(() => {
+    if (!searchQuery.trim()) return documents;
+    return documents.filter((doc) =>
+      doc.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [documents, searchQuery]);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    if (query.trim()) {
-      const filtered = documents.filter((doc) =>
-        doc.name.toLowerCase().includes(query.toLowerCase())
-      );
-      setFilteredDocuments(filtered);
-    } else {
-      setFilteredDocuments(documents);
-    }
   };
 
   const handleUploadDocument = async () => {
@@ -216,38 +252,7 @@ export default function LibraryScreen() {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const file = result.assets[0];
-        const fileExtension = file.name.split(".").pop()?.toLowerCase() || "other";
-        const fileType: Document["type"] =
-          fileExtension === "pdf"
-            ? "pdf"
-            : fileExtension === "txt"
-              ? "txt"
-              : fileExtension === "docx"
-                ? "docx"
-                : fileExtension === "xlsx"
-                  ? "xlsx"
-                  : "other";
-
-        const newDoc: Document = {
-          id: Date.now().toString(),
-          name: file.name,
-          type: fileType,
-          size: file.size ? `${(file.size / 1024).toFixed(1)} KB` : "Unknown",
-          uploadedAt: new Date(),
-          status: "processing",
-        };
-
-        setDocuments((prev) => [newDoc, ...prev]);
-        setFilteredDocuments((prev) => [newDoc, ...prev]);
-
-        setTimeout(() => {
-          setDocuments((prev) =>
-            prev.map((d) => (d.id === newDoc.id ? { ...d, status: "indexed" as const } : d))
-          );
-          setFilteredDocuments((prev) =>
-            prev.map((d) => (d.id === newDoc.id ? { ...d, status: "indexed" as const } : d))
-          );
-        }, 2000);
+        uploadMutation.mutate(file);
       }
     } catch (error) {
       console.error("Document picker error:", error);
@@ -265,8 +270,7 @@ export default function LibraryScreen() {
         text: t("delete"),
         style: "destructive",
         onPress: () => {
-          setDocuments((prev) => prev.filter((d) => d.id !== docId));
-          setFilteredDocuments((prev) => prev.filter((d) => d.id !== docId));
+          deleteMutation.mutate(docId);
         },
       },
     ]);
