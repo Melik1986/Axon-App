@@ -191,7 +191,7 @@ export default function LibraryScreen() {
   const uploadMutation = useMutation({
     mutationFn: async (file: DocumentPicker.DocumentPickerAsset) => {
       const formData = new FormData();
-      
+
       if (Platform.OS === "web") {
         const response = await fetch(file.uri);
         const blob = await response.blob();
@@ -371,7 +371,7 @@ export default function LibraryScreen() {
       style={({ pressed }) => [
         styles.documentCard,
         { backgroundColor: theme.backgroundDefault },
-        pressed && { opacity: 0.7 }
+        pressed && { opacity: 0.7 },
       ]}
       onPress={() => handleDocumentPress(item)}
     >

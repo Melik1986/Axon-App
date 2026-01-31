@@ -286,9 +286,12 @@ export class RagService {
           const pdfData = await pdfParse(buffer);
           content = pdfData.text || "";
           if (!content.trim()) {
-            content = "[PDF contains no extractable text - may be scanned/image-based]";
+            content =
+              "[PDF contains no extractable text - may be scanned/image-based]";
           }
-          console.log(`PDF parsed successfully: ${content.length} characters extracted`);
+          console.log(
+            `PDF parsed successfully: ${content.length} characters extracted`,
+          );
         } catch (pdfError) {
           console.error("PDF parsing error:", pdfError);
           content = `[PDF parsing failed: ${pdfError instanceof Error ? pdfError.message : "Unknown error"}]`;
@@ -709,7 +712,10 @@ export class RagService {
     return `Релевантная информация из базы знаний:\n\n${contextParts.join("\n\n---\n\n")}`;
   }
 
-  async seedDemoData(): Promise<{ created: number; documents: DocumentMetadata[] }> {
+  async seedDemoData(): Promise<{
+    created: number;
+    documents: DocumentMetadata[];
+  }> {
     const demoDocuments = [
       {
         name: "Company Overview",

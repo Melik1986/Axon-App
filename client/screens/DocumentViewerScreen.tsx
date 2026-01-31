@@ -21,7 +21,10 @@ import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl, apiRequest } from "@/lib/query-client";
 import { LibraryStackParamList } from "@/navigation/LibraryStackNavigator";
 
-type DocumentViewerRouteProp = RouteProp<LibraryStackParamList, "DocumentViewer">;
+type DocumentViewerRouteProp = RouteProp<
+  LibraryStackParamList,
+  "DocumentViewer"
+>;
 
 interface DocumentMetadata {
   id: string;
@@ -49,18 +52,21 @@ export default function DocumentViewerScreen() {
     queryKey: ["/api/documents", documentId],
     queryFn: async () => {
       const response = await fetch(
-        new URL(`/api/documents/${documentId}`, getApiUrl()).toString()
+        new URL(`/api/documents/${documentId}`, getApiUrl()).toString(),
       );
       if (!response.ok) throw new Error("Failed to fetch document");
       return response.json();
     },
   });
 
-  const { data: contentData, isLoading: loadingContent } = useQuery<{ id: string; content: string }>({
+  const { data: contentData, isLoading: loadingContent } = useQuery<{
+    id: string;
+    content: string;
+  }>({
     queryKey: ["/api/documents", documentId, "content"],
     queryFn: async () => {
       const response = await fetch(
-        new URL(`/api/documents/${documentId}/content`, getApiUrl()).toString()
+        new URL(`/api/documents/${documentId}/content`, getApiUrl()).toString(),
       );
       if (!response.ok) throw new Error("Failed to fetch content");
       return response.json();
@@ -82,9 +88,14 @@ export default function DocumentViewerScreen() {
       return apiRequest("POST", `/api/documents/${documentId}/reindex`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents", documentId] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/documents", documentId],
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      Alert.alert(t("success") || "Success", t("documentReindexed") || "Document reindexed successfully");
+      Alert.alert(
+        t("success") || "Success",
+        t("documentReindexed") || "Document reindexed successfully",
+      );
     },
   });
 
@@ -92,7 +103,8 @@ export default function DocumentViewerScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       t("deleteDocument") || "Delete Document",
-      t("deleteDocumentConfirm") || "Are you sure you want to delete this document?",
+      t("deleteDocumentConfirm") ||
+        "Are you sure you want to delete this document?",
       [
         { text: t("cancel") || "Cancel", style: "cancel" },
         {
@@ -100,7 +112,7 @@ export default function DocumentViewerScreen() {
           style: "destructive",
           onPress: () => deleteMutation.mutate(),
         },
-      ]
+      ],
     );
   };
 
@@ -112,7 +124,8 @@ export default function DocumentViewerScreen() {
   const isLoading = loadingDoc || loadingContent;
 
   const formatDate = (dateInput: string | Date) => {
-    const date = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    const date =
+      typeof dateInput === "string" ? new Date(dateInput) : dateInput;
     return date.toLocaleDateString(undefined, {
       year: "numeric",
       month: "short",
@@ -150,7 +163,13 @@ export default function DocumentViewerScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.loadingContainer, { backgroundColor: theme.backgroundRoot }]}>
+      <View
+        style={[
+          styles.container,
+          styles.loadingContainer,
+          { backgroundColor: theme.backgroundRoot },
+        ]}
+      >
         <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
@@ -167,9 +186,16 @@ export default function DocumentViewerScreen() {
         },
       ]}
     >
-      <View style={[styles.metadataCard, { backgroundColor: theme.backgroundSecondary }]}>
+      <View
+        style={[
+          styles.metadataCard,
+          { backgroundColor: theme.backgroundSecondary },
+        ]}
+      >
         <View style={styles.metadataRow}>
-          <ThemedText style={[styles.metadataLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.metadataLabel, { color: theme.textSecondary }]}
+          >
             {t("name") || "Name"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
@@ -178,7 +204,9 @@ export default function DocumentViewerScreen() {
         </View>
 
         <View style={styles.metadataRow}>
-          <ThemedText style={[styles.metadataLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.metadataLabel, { color: theme.textSecondary }]}
+          >
             {t("type") || "Type"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
@@ -187,7 +215,9 @@ export default function DocumentViewerScreen() {
         </View>
 
         <View style={styles.metadataRow}>
-          <ThemedText style={[styles.metadataLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.metadataLabel, { color: theme.textSecondary }]}
+          >
             {t("size") || "Size"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
@@ -196,16 +226,25 @@ export default function DocumentViewerScreen() {
         </View>
 
         <View style={styles.metadataRow}>
-          <ThemedText style={[styles.metadataLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.metadataLabel, { color: theme.textSecondary }]}
+          >
             {t("status") || "Status"}
           </ThemedText>
-          <ThemedText style={[styles.metadataValue, { color: getStatusColor(document?.status || "") }]}>
+          <ThemedText
+            style={[
+              styles.metadataValue,
+              { color: getStatusColor(document?.status || "") },
+            ]}
+          >
             {getStatusText(document?.status || "")}
           </ThemedText>
         </View>
 
         <View style={styles.metadataRow}>
-          <ThemedText style={[styles.metadataLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.metadataLabel, { color: theme.textSecondary }]}
+          >
             {t("chunks") || "Chunks"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
@@ -214,7 +253,9 @@ export default function DocumentViewerScreen() {
         </View>
 
         <View style={styles.metadataRow}>
-          <ThemedText style={[styles.metadataLabel, { color: theme.textSecondary }]}>
+          <ThemedText
+            style={[styles.metadataLabel, { color: theme.textSecondary }]}
+          >
             {t("uploaded") || "Uploaded"}
           </ThemedText>
           <ThemedText style={[styles.metadataValue, { color: theme.text }]}>
@@ -242,7 +283,9 @@ export default function DocumentViewerScreen() {
         >
           <Feather name="refresh-cw" size={18} color="#fff" />
           <ThemedText style={styles.actionButtonText}>
-            {reindexMutation.isPending ? t("processing") || "Processing..." : t("reindex") || "Reindex"}
+            {reindexMutation.isPending
+              ? t("processing") || "Processing..."
+              : t("reindex") || "Reindex"}
           </ThemedText>
         </Pressable>
 
@@ -262,7 +305,12 @@ export default function DocumentViewerScreen() {
         <ThemedText style={[styles.sectionTitle, { color: theme.text }]}>
           {t("documentContent") || "Document Content"}
         </ThemedText>
-        <View style={[styles.contentBox, { backgroundColor: theme.backgroundSecondary }]}>
+        <View
+          style={[
+            styles.contentBox,
+            { backgroundColor: theme.backgroundSecondary },
+          ]}
+        >
           <ScrollView nestedScrollEnabled style={styles.contentScroll}>
             <ThemedText style={[styles.contentText, { color: theme.text }]}>
               {contentData?.content || t("noContent") || "No content available"}

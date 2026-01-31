@@ -127,7 +127,9 @@ export const ragDocuments = pgTable("rag_documents", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id, { onDelete: "cascade" }),
+  userId: varchar("user_id").references(() => users.id, {
+    onDelete: "cascade",
+  }),
   documentId: varchar("document_id").references(() => documents.id, {
     onDelete: "cascade",
   }),
