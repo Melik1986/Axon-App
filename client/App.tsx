@@ -94,13 +94,15 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <AppContent />
-        </SafeAreaProvider>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <React.StrictMode>
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <AppContent />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </React.StrictMode>
   );
 }
 

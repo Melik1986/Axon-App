@@ -1,19 +1,35 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
 
-# 1. Run lint-staged (formatting and linting for staged files)
-echo "Running lint-staged (prettier + lint)..."
+# 1. Run lint-staged
+echo "Running lint-staged..."
 npx lint-staged
 
 # 2. Run gitleaks via Docker
-if command -v docker >/dev/null 2>&1; then
-    echo "Running gitleaks detection via Docker..."
-    # Check version first to confirm image is available and working
-    docker run --rm zricethezav/gitleaks:latest version
-    
-    # Run detection
-    # -v: verbose output
-    # --redact: mask secrets in output
-    docker run --rm -v "$(pwd):/path" zricethezav/gitleaks:latest detect --source="/path" -v --redact
-else
-    echo "WARNING: Docker is not available/running. Skipping gitleaks scan."
-    echo "Please ensure Docker Desktop is running."
+# Check if docker is available and running
+if ! docker info > /dev/null 2>&1; then
+    echo "WARNING: Docker is not running or not accessible. Gitleaks scan skipped."
+    exit 0
 fi
+
+echo "Running gitleaks protection via Docker..."
+
+# Determine the correct path for volume mounting
+REPO_PATH=$(pwd)
+if [ "$OS" = "Windows_NT" ]; then
+    if command -v pwd >/dev/null 2>&1; then
+         # Check if pwd supports -W (Git Bash)
+         if pwd -W >/dev/null 2>&1; then
+            REPO_PATH=$(pwd -W)
+         fi
+    fi
+fi
+
+# Run gitleaks using the official image
+# MSYS_NO_PATHCONV=1 is required for Git Bash on Windows to prevent path mangling
+# We mount the repository to /workspace and set it as the working directory
+MSYS_NO_PATHCONV=1 docker run --rm \
+    -v "$REPO_PATH:/workspace" \
+    -w /workspace \
+    zricethezav/gitleaks:latest \
+    protect --staged -v
