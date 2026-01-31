@@ -44,7 +44,7 @@ Our architecture is designed for speed, scalability, and "Write Once, Run Everyw
     *   `LlmModule`: Multi-provider LLM support (OpenAI, Anthropic, Groq, Ollama)
     *   `RagModule`: RAG knowledge base with Qdrant vector store
     *   `ErpModule`: ERP integration via OpenAPI adapter
-    *   `AuthModule`: OTP authentication
+    *   `AuthModule`: Replit Auth (OpenID Connect) + JWT tokens
 *   **AI Engine**:
     *   **OpenAI SDK**: GPT-4o for reasoning.
     *   **Whisper**: For lightning-fast voice transcription.
