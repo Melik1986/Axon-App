@@ -13,7 +13,7 @@ import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { File } from "expo-file-system";
 
 import { AnimatedSearchIcon } from "@/components/AnimatedIcons";
