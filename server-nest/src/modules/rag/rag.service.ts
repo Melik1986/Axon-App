@@ -1,6 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
+import * as pdfParse from "pdf-parse";
 import {
   RagConfig,
   SearchResult,
@@ -281,7 +282,17 @@ export class RagService {
       if (mimeType === "text/plain" || mimeType.includes("text")) {
         content = buffer.toString("utf-8");
       } else if (mimeType === "application/pdf") {
-        content = `[PDF content from document - text extraction pending]`;
+        try {
+          const pdfData = await pdfParse(buffer);
+          content = pdfData.text || "";
+          if (!content.trim()) {
+            content = "[PDF contains no extractable text - may be scanned/image-based]";
+          }
+          console.log(`PDF parsed successfully: ${content.length} characters extracted`);
+        } catch (pdfError) {
+          console.error("PDF parsing error:", pdfError);
+          content = `[PDF parsing failed: ${pdfError instanceof Error ? pdfError.message : "Unknown error"}]`;
+        }
       } else {
         content = `[Document content - format: ${mimeType}]`;
       }
