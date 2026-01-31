@@ -59,8 +59,8 @@ export const useInventoryStore = create<InventoryState>()(
             "Content-Type": "application/json",
           };
 
-          if (session?.access_token) {
-            headers["Authorization"] = `Bearer ${session.access_token}`;
+          if (session?.accessToken) {
+            headers["Authorization"] = `Bearer ${session.accessToken}`;
           }
 
           const query = productName
@@ -104,8 +104,8 @@ export const useInventoryStore = create<InventoryState>()(
             "Content-Type": "application/json",
           };
 
-          if (session?.access_token) {
-            headers["Authorization"] = `Bearer ${session.access_token}`;
+          if (session?.accessToken) {
+            headers["Authorization"] = `Bearer ${session.accessToken}`;
           }
 
           const query = filter ? `?filter=${encodeURIComponent(filter)}` : "";

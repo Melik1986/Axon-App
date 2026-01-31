@@ -89,8 +89,8 @@ export class AuthService {
         });
       } else {
         user = await this.updateUserProfile(user.id, {
-          name: userInfo.name || user.name,
-          picture: userInfo.picture || user.picture,
+          name: userInfo.name ?? user.name ?? undefined,
+          picture: userInfo.picture ?? user.picture ?? undefined,
           replitId: userInfo.id,
         });
       }

@@ -19,7 +19,7 @@ export default function ChatStackNavigator() {
         name="Chat"
         component={ChatScreen}
         options={{
-          headerTitle: () => <HeaderTitle title="JSRVIS" />,
+          headerTitle: () => <HeaderTitle title="AXON" />,
         }}
       />
     </Stack.Navigator>
