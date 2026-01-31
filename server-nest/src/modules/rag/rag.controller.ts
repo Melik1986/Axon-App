@@ -50,6 +50,15 @@ export class RagController {
     return doc;
   }
 
+  @Get(":id/content")
+  async getDocumentContent(@Param("id") id: string) {
+    const content = await this.ragService.getDocumentContent(id);
+    if (content === null) {
+      throw new HttpException("Document not found", HttpStatus.NOT_FOUND);
+    }
+    return { id, content };
+  }
+
   @Post("upload")
   @UseInterceptors(FileInterceptor("file"))
   async uploadDocument(

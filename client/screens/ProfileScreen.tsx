@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -22,11 +22,12 @@ import {
   AnimatedSunIcon,
   AnimatedMoonIcon,
 } from "@/components/AnimatedIcons";
-import { useSettingsStore } from "@/store/settingsStore";
+import { useSettingsStore, RagProvider } from "@/store/settingsStore";
 import { useAuthStore } from "@/store/authStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
+import { getApiUrl } from "@/lib/query-client";
 
 const languageNames: Record<string, string> = {
   ru: "Русский",
@@ -45,8 +46,42 @@ export default function ProfileScreen() {
   const { theme, toggleTheme, isDark } = useTheme();
   const { t } = useTranslation();
 
-  const { llm, erp, rag, voice, language } = useSettingsStore();
+  const { llm, erp, rag, voice, language, setRagSettings } = useSettingsStore();
   const { user, signOut } = useAuthStore();
+
+  useEffect(() => {
+    const fetchProviderSettings = async () => {
+      try {
+        const url = new URL("/api/documents/providers", getApiUrl());
+        const response = await fetch(url.toString());
+        if (response.ok) {
+          const data = await response.json();
+          const currentProvider = (data.current || "none") as RagProvider;
+          if (currentProvider !== rag.provider) {
+            setRagSettings({ ...rag, provider: currentProvider });
+          }
+        }
+      } catch (error) {
+        console.log("Failed to fetch provider settings:", error);
+      }
+    };
+    fetchProviderSettings();
+  }, []);
+
+  const getRagProviderLabel = () => {
+    switch (rag.provider) {
+      case "replit":
+        return "Replit PostgreSQL";
+      case "qdrant":
+        return "Qdrant";
+      case "supabase":
+        return "Supabase";
+      case "none":
+        return t("disabled") || "Disabled";
+      default:
+        return t("disabled") || "Disabled";
+    }
+  };
 
   const getLLMProviderLabel = () => {
     switch (llm.provider) {
@@ -208,21 +243,7 @@ export default function ProfileScreen() {
         <SettingsItem
           icon="library-outline"
           title={t("ragProvider") || "Provider"}
-          value={
-            rag.provider === "qdrant" ? "Qdrant" : t("disabled") || "Disabled"
-          }
-          onPress={() => handleNavigate("RAGSettings")}
-        />
-        <SettingsItem
-          icon="server-outline"
-          title={t("qdrantUrl") || "Qdrant URL"}
-          subtitle={rag.qdrant.url || t("notConfigured")}
-          onPress={() => handleNavigate("RAGSettings")}
-        />
-        <SettingsItem
-          icon="folder-outline"
-          title={t("collectionName") || "Collection"}
-          value={rag.qdrant.collectionName || "kb_jarvis"}
+          value={getRagProviderLabel()}
           onPress={() => handleNavigate("RAGSettings")}
         />
       </View>

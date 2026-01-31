@@ -165,6 +165,13 @@ export class RagService {
     return this.documents.get(id) || null;
   }
 
+  async getDocumentContent(id: string): Promise<string | null> {
+    if (!this.documents.has(id)) {
+      return null;
+    }
+    return this.documentContents.get(id) || "";
+  }
+
   async uploadDocument(
     buffer: Buffer,
     fileName: string,

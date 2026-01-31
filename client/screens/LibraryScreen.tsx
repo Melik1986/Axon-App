@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
+import { useNavigation } from "@react-navigation/native";
 import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
@@ -176,6 +177,7 @@ function CloseIcon({
 export default function LibraryScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
+  const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -357,19 +359,11 @@ export default function LibraryScreen() {
   };
 
   const handleDocumentPress = (item: Document) => {
-    const chunkCount = (item as any).chunkCount || 0;
-    Alert.alert(
-      item.name,
-      `Type: ${item.type}\nSize: ${item.size}\nStatus: ${getStatusText(item.status)}\nChunks: ${chunkCount}`,
-      [
-        { text: "Close", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive",
-          onPress: () => handleDeleteDocument(item.id)
-        }
-      ]
-    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate("DocumentViewer", {
+      documentId: item.id,
+      documentName: item.name,
+    });
   };
 
   const renderDocument = ({ item }: { item: Document }) => (
