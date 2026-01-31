@@ -48,7 +48,7 @@ const customLightTheme = {
 };
 
 function AppContent() {
-  const themeMode = useSettingsStore((state) => state.themeMode);
+  const themeMode = useSettingsStore((state) => state.theme);
   const isDark = themeMode === "dark";
 
   return (

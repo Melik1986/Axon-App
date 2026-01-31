@@ -74,11 +74,7 @@ export class LlmService {
     const config = this.getProviderConfig(settings);
 
     // Replit and Ollama don't require API key
-    if (
-      !config.apiKey &&
-      settings.provider !== "replit" &&
-      settings.provider !== "ollama"
-    ) {
+    if (!config.apiKey && settings.provider !== "ollama") {
       throw new Error(`API key is required for provider: ${settings.provider}`);
     }
 

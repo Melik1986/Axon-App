@@ -3,12 +3,15 @@
   "compilerOptions": {
     "strict": true,
     "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "useDefineForClassFields": false,
     "paths": {
       "@/*": ["./client/*"],
       "@shared/*": ["./shared/*"]
     },
-    "types": ["node"]
+    "types": ["node", "multer"]
   },
-  "include": ["**/*.ts", "**/*.tsx"],
+  "include": ["**/*.ts", "**/*.tsx", "**/*.d.ts"],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"]
 }

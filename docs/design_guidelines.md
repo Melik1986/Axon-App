@@ -1,4 +1,4 @@
-# JSRVIS 1C Mobile - Design Guidelines
+# AXON 1C Mobile - Design Guidelines
 
 ## 1. Brand Identity
 
@@ -41,7 +41,7 @@
 **Phone Entry Screen**
 - Layout: Full-screen centered form, no header
 - Content: 
-  - App logo and "JSRVIS" wordmark at top
+  - App logo and "AXON" wordmark at top
   - Phone input field with country code selector
   - "Continue" button (disabled until valid number)
   - Privacy policy link at bottom
@@ -59,7 +59,7 @@
 ### Main App (Tab Navigation)
 
 **Chat Screen** (Default tab)
-- Header: Transparent with "JSRVIS" title centered, settings icon top-right
+- Header: Transparent with "AXON" title centered, settings icon top-right
 - Content: 
   - Gifted Chat component (full-screen)
   - Voice waveform overlay when recording
@@ -187,10 +187,10 @@ Accents:
 ## 7. Assets to Generate
 
 **Required**:
-1. **icon.png** - App icon with JSRVIS logo, cyan gradient circular background
+1. **icon.png** - App icon with AXON logo, cyan gradient circular background
    - WHERE: Device home screen, splash screen
    
-2. **splash-icon.png** - Simplified JSRVIS logo, white on transparent
+2. **splash-icon.png** - Simplified AXON logo, white on transparent
    - WHERE: App launch screen
 
 3. **empty-chat.png** - Illustration of microphone with sound waves, minimalist cyan/white

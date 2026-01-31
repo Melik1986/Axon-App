@@ -66,7 +66,7 @@ export default function ProfileScreen() {
       }
     };
     fetchProviderSettings();
-  }, []);
+  }, [rag, setRagSettings]);
 
   const getRagProviderLabel = () => {
     switch (rag.provider) {

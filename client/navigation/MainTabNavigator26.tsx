@@ -11,6 +11,18 @@ export type MainTabParamList = {
 
 const Tab = createNativeBottomTabNavigator<MainTabParamList>();
 
+const homeTabIcon = {
+  type: "image",
+  source: require("../../assets/images/icon.png"),
+  tinted: true,
+} as const;
+
+const profileTabIcon = {
+  type: "image",
+  source: require("../../assets/images/avatar-default.png"),
+  tinted: true,
+} as const;
+
 export default function MainTabNavigator26() {
   return (
     <Tab.Navigator
@@ -24,12 +36,7 @@ export default function MainTabNavigator26() {
         component={HomeStackNavigator}
         options={{
           title: "Home",
-          icon: {
-            sfSymbolName: "house",
-          },
-          selectedIcon: {
-            sfSymbolName: "house.fill",
-          },
+          tabBarIcon: homeTabIcon,
         }}
       />
       <Tab.Screen
@@ -37,12 +44,7 @@ export default function MainTabNavigator26() {
         component={ProfileStackNavigator}
         options={{
           title: "Profile",
-          icon: {
-            sfSymbolName: "person",
-          },
-          selectedIcon: {
-            sfSymbolName: "person.fill",
-          },
+          tabBarIcon: profileTabIcon,
         }}
       />
     </Tab.Navigator>

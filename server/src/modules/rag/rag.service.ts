@@ -1,7 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
-import * as pdfParse from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 import {
   RagConfig,
   SearchResult,
@@ -79,7 +79,7 @@ export class RagService {
       }
       this.settingsLoaded = true;
     } catch (error) {
-      console.log("Could not load RAG settings from DB, using defaults");
+      console.log("Could not load RAG settings from DB, using defaults", error);
       this.settingsLoaded = true;
     }
   }
@@ -283,8 +283,16 @@ export class RagService {
         content = buffer.toString("utf-8");
       } else if (mimeType === "application/pdf") {
         try {
-          const pdfData = await pdfParse(buffer);
-          content = pdfData.text || "";
+          let parser: PDFParse | null = null;
+          try {
+            parser = new PDFParse({ data: buffer });
+            const pdfData = await parser.getText();
+            content = pdfData.text || "";
+          } finally {
+            if (parser) {
+              await parser.destroy();
+            }
+          }
           if (!content.trim()) {
             content =
               "[PDF contains no extractable text - may be scanned/image-based]";
@@ -550,7 +558,11 @@ export class RagService {
     return response.data[0].embedding;
   }
 
-  async search(query: string, limit = 3): Promise<SearchResult[]> {
+  async search(
+    query: string,
+    limit = 3,
+    overrideQdrantConfig?: RagConfig,
+  ): Promise<SearchResult[]> {
     if (!this.isAvailable()) {
       return this.getLocalResults(query, limit);
     }
@@ -558,7 +570,7 @@ export class RagService {
     try {
       switch (this.providerConfig.type) {
         case "qdrant":
-          return await this.searchQdrant(query, limit);
+          return await this.searchQdrant(query, limit, overrideQdrantConfig);
         case "supabase":
           return await this.searchSupabase(query, limit);
         case "replit":
@@ -575,8 +587,9 @@ export class RagService {
   private async searchQdrant(
     query: string,
     limit: number,
+    overrideConfig?: RagConfig,
   ): Promise<SearchResult[]> {
-    const config = this.providerConfig.qdrant;
+    const config = overrideConfig || this.providerConfig.qdrant;
     if (!config?.url) return [];
 
     const embedding = await this.embed(query);

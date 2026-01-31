@@ -1,18 +1,6 @@
 import { create } from "zustand";
-
-export interface ChatMessage {
-  id: number;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: string;
-}
-
-export interface Conversation {
-  id: number;
-  title: string;
-  createdAt: string;
-  messages?: ChatMessage[];
-}
+import type { ChatMessage, Conversation } from "@shared/types";
+export type { ChatMessage, Conversation } from "@shared/types";
 
 interface ChatState {
   conversations: Conversation[];

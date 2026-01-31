@@ -52,7 +52,7 @@ Our architecture is designed for speed, scalability, and "Write Once, Run Everyw
 
 ### 🔗 Shared Layer (The Monorepo Magic)
 *   Located in `/shared`.
-*   **Single Source of Truth**: Zod schemas and TypeScript interfaces shared between Client and Server.
+*   **Single Source of Truth**: `shared/types.ts` for isomorphic types; `shared/schema.ts` for server-only Drizzle schema.
 *   **Zero Desync**: API contracts are enforced at compile time.
 
 ---

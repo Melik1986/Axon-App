@@ -63,7 +63,7 @@ export default function RAGSettingsScreen() {
       }
     };
     fetchProviderSettings();
-  }, []);
+  }, [rag, setRagSettings]);
 
   const providers: { id: RagProvider; name: string; description: string }[] = [
     {
@@ -116,6 +116,7 @@ export default function RAGSettingsScreen() {
       setRagSettings(settings);
       navigation.goBack();
     } catch (error) {
+      console.log("Failed to save settings:", error);
       Alert.alert("Error", "Failed to save settings. Please try again.");
     } finally {
       setSaving(false);

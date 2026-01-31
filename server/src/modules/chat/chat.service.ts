@@ -305,7 +305,7 @@ export class ChatService {
         system: systemMessage,
         messages,
         tools,
-        maxTokens: 2048,
+        maxOutputTokens: 2048,
       });
 
       let fullResponse = "";

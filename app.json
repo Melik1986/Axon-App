@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "JSRVIS",
-    "slug": "jsrvis-1c-mobile",
+    "name": "AXON",
+    "slug": "axon-1c-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "jsrvis",
+    "scheme": "axon",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.jsrvis.mobile"
+      "bundleIdentifier": "com.axon.mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +19,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.jsrvis.mobile"
+      "package": "com.axon.mobile"
     },
     "web": {
       "output": "single",
