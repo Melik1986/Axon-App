@@ -101,19 +101,31 @@ export default function LoginScreen() {
 
   const handleDevLogin = async () => {
     setIsSigningIn(true);
-    setUser({
-      id: "dev-user-1",
-      email: "dev@axon.local",
-      name: "Dev User",
-      picture: null,
-      replitId: null,
-    });
-    setSession({
-      accessToken: "dev-token",
-      refreshToken: "dev-refresh-token",
-      expiresIn: 3600,
-      expiresAt: Date.now() + 3600 * 1000,
-    });
+    try {
+      const baseUrl = getApiUrl();
+      const response = await fetch(`${baseUrl}api/auth/dev-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "dev@axon.local", name: "Dev User" }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.session && data.user) {
+        setSession({
+          accessToken: data.session.accessToken,
+          refreshToken: data.session.refreshToken,
+          expiresIn: data.session.expiresIn,
+          expiresAt: Date.now() + data.session.expiresIn * 1000,
+        });
+        setUser(data.user);
+      } else {
+        Alert.alert(t("error"), data.error || t("authFailed"));
+      }
+    } catch (error) {
+      console.error("Dev login error:", error);
+      Alert.alert(t("error"), t("authFailed"));
+    }
     setIsSigningIn(false);
   };
 

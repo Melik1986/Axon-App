@@ -110,4 +110,19 @@ export class AuthController {
       user: isAuthenticated ? (req as any).user : null,
     };
   }
+
+  @Post("dev-login")
+  async devLogin(@Body() body: { email?: string; name?: string }) {
+    const email = body.email || "dev@axon.local";
+    const name = body.name || "Dev User";
+    
+    const result = await this.authService.authenticateFromSession({
+      id: `dev-${Date.now()}`,
+      email,
+      name,
+      picture: null,
+    });
+    
+    return result;
+  }
 }
