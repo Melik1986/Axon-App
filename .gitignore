@@ -69,6 +69,8 @@ logs/
 server/dist/
 server_dist
 project/
+dist
+server_dist
 
 # Database
 *.db
