@@ -113,9 +113,7 @@ export default function ERPSettingsScreen() {
             </Pressable>
           </View>
           <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
-            {isDemo
-              ? "Без 1С: кнопка Confirm работает с локальным mock"
-              : "Укажите URL и учётные данные 1С"}
+            {isDemo ? t("erpModeHintDemo") : t("erpModeHint1c")}
           </ThemedText>
         </View>
 

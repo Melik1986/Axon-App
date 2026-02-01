@@ -3,6 +3,7 @@ import {
   Catch,
   ArgumentsHost,
   HttpStatus,
+  HttpException,
   Logger,
 } from "@nestjs/common";
 import { Response } from "express";
@@ -117,15 +118,21 @@ export class LlmProviderExceptionFilter implements ExceptionFilter {
       return;
     }
 
-    // Non-LLM: delegate to Nest default or return generic 500
-    const statusCode =
-      typeof (exception as { statusCode?: number })?.statusCode === "number"
-        ? (exception as { statusCode: number }).statusCode
-        : HttpStatus.INTERNAL_SERVER_ERROR;
-    const message =
-      typeof (exception as { message?: string })?.message === "string"
-        ? (exception as { message: string }).message
-        : "Internal server error";
+    // Non-LLM: preserve NestJS HttpException status (getStatus()), then statusCode, else 500
+    let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
+    let message = "Internal server error";
+    if (exception instanceof HttpException) {
+      statusCode = exception.getStatus();
+      const response = exception.getResponse();
+      message =
+        typeof response === "string"
+          ? response
+          : ((response as { message?: string })?.message ?? exception.message);
+    } else {
+      const err = exception as { statusCode?: number; message?: string };
+      if (typeof err?.statusCode === "number") statusCode = err.statusCode;
+      if (typeof err?.message === "string") message = err.message;
+    }
     if (!res.headersSent) {
       res.status(statusCode).json({ statusCode, message });
     }
