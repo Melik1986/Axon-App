@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl } from "@/lib/api-config";
 import {
   createHybridStorage,
   AUTH_SENSITIVE_PATHS,

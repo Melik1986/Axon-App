@@ -99,8 +99,16 @@ export class AppLogger {
     });
 
     if (error) {
-      // Специальная обработка для ошибок Supabase
-      if (typeof error === "object" && error !== null) {
+      if (error instanceof Error) {
+        const sanitized = sanitizeForLogging({
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          cause: (error as { cause?: unknown }).cause,
+        });
+        // eslint-disable-next-line no-console
+        console.error(formatted, sanitized);
+      } else if (typeof error === "object" && error !== null) {
         const supabaseError = error as SupabaseError;
         if (
           supabaseError.message ||

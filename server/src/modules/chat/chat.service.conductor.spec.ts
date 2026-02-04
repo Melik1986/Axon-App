@@ -82,7 +82,7 @@ describe("ChatService (Conductor parseRawText)", () => {
     } as { fullStream: AsyncIterable<unknown> });
 
     const rawText = "три колы и один пирожок";
-    const result = await service.parseRawText(rawText);
+    const result = await service.parseRawText("test-user-id", rawText);
 
     expect(result.rawText).toBe(rawText);
     expect(result.toolCalls.length).toBeGreaterThanOrEqual(1);
@@ -102,7 +102,7 @@ describe("ChatService (Conductor parseRawText)", () => {
     } as { fullStream: AsyncIterable<unknown> });
 
     const rawText = "привет";
-    const result = await service.parseRawText(rawText);
+    const result = await service.parseRawText("test-user-id", rawText);
 
     expect(result.rawText).toBe(rawText);
     expect(result.toolCalls).toHaveLength(0);

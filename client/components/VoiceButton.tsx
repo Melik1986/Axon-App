@@ -18,6 +18,7 @@ interface VoiceButtonProps {
   isRecording: boolean;
   onPress: () => void;
   disabled?: boolean;
+  size?: number;
 }
 
 const springConfig: WithSpringConfig = {
@@ -26,12 +27,11 @@ const springConfig: WithSpringConfig = {
   stiffness: 150,
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 export function VoiceButton({
   isRecording,
   onPress,
   disabled,
+  size = Spacing.fabSize,
 }: VoiceButtonProps) {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
@@ -73,29 +73,45 @@ export function VoiceButton({
     }
   };
 
+  const iconSize = size * 0.6;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width: size, height: size }]}>
       <Animated.View
-        style={[styles.pulse, { backgroundColor: theme.primary }, pulseStyle]}
+        style={[
+          styles.pulse,
+          {
+            backgroundColor: theme.primary,
+            width: size + 24,
+            height: size + 24,
+            borderRadius: (size + 24) / 2,
+          },
+          pulseStyle,
+        ]}
       />
-      <AnimatedPressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled}
+      <Animated.View
         style={[
           styles.button,
+          { width: size, height: size, borderRadius: size / 2 },
           animatedStyle,
           disabled && styles.disabled,
           isRecording && { backgroundColor: theme.error + "15" },
         ]}
       >
-        {isRecording ? (
-          <AnimatedStopIcon size={28} color={theme.error} />
-        ) : (
-          <AnimatedMicIcon size={28} color={theme.primary} />
-        )}
-      </AnimatedPressable>
+        <Pressable
+          style={styles.pressable}
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          disabled={disabled}
+        >
+          {isRecording ? (
+            <AnimatedStopIcon size={iconSize} color={theme.error} />
+          ) : (
+            <AnimatedMicIcon size={iconSize} color={theme.primary} />
+          )}
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -107,17 +123,17 @@ const styles = StyleSheet.create({
   },
   pulse: {
     position: "absolute",
-    width: Spacing.fabSize + 24,
-    height: Spacing.fabSize + 24,
-    borderRadius: (Spacing.fabSize + 24) / 2,
   },
   button: {
-    width: Spacing.fabSize,
-    height: Spacing.fabSize,
-    borderRadius: Spacing.fabSize / 2,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
+  },
+  pressable: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
   disabled: {
     opacity: 0.5,

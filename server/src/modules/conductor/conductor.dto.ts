@@ -9,25 +9,26 @@ import {
 
 export class ConductorParseDto {
   @ApiProperty({
+    type: String,
     description: "Raw text from voice/Whisper (e.g. «три колы и один пирожок»)",
     example: "три колы и один пирожок",
   })
   @IsString()
   rawText!: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: () => LlmSettingsDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => LlmSettingsDto)
   llmSettings?: LlmSettingsDto;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: () => ErpSettingsDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => ErpSettingsDto)
   erpSettings?: ErpSettingsDto;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: () => RagSettingsDto })
   @IsOptional()
   @ValidateNested()
   @Type(() => RagSettingsDto)

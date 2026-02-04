@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { StyleSheet, View, ScrollView, TextInput } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useHeaderHeight } from "@react-navigation/elements";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 interface McpServer {
@@ -16,7 +18,9 @@ interface McpServer {
 
 export default function MCPServersScreen() {
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const [servers, setServers] = useState<McpServer[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -27,8 +31,6 @@ export default function MCPServersScreen() {
     "-y @modelcontextprotocol/server-everything",
   );
 
-  // For now, MCP servers are stored in the user session or ephemeral settings
-  // A real implementation would store them in the database
   const fetchServers = async () => {
     // Mock for now
     setServers([
@@ -62,12 +64,15 @@ export default function MCPServersScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundDefault }]}
     >
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
+        contentContainerStyle={{
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.xl,
+        }}
       >
         <View style={styles.header}>
-          <ThemedText style={styles.title}>MCP Servers</ThemedText>
+          <ThemedText style={styles.title}>{t("mcpServers")}</ThemedText>
           <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Connect external tool providers via Model Context Protocol
+            {t("mcpServersDesc")}
           </ThemedText>
         </View>
 
@@ -77,7 +82,7 @@ export default function MCPServersScreen() {
             variant="outline"
             style={styles.addBtn}
           >
-            Connect New Server
+            {t("connectNewServer")}
           </Button>
         ) : (
           <View
@@ -86,14 +91,16 @@ export default function MCPServersScreen() {
               { backgroundColor: theme.backgroundSecondary },
             ]}
           >
-            <ThemedText style={styles.formTitle}>Connect MCP Server</ThemedText>
+            <ThemedText style={styles.formTitle}>
+              {t("connectMcpServer")}
+            </ThemedText>
 
             <TextInput
               style={[
                 styles.input,
                 { color: theme.text, borderColor: theme.border },
               ]}
-              placeholder="Server Name"
+              placeholder={t("serverName")}
               placeholderTextColor={theme.textTertiary}
               value={name}
               onChangeText={setName}
@@ -104,15 +111,13 @@ export default function MCPServersScreen() {
                 styles.input,
                 { color: theme.text, borderColor: theme.border },
               ]}
-              placeholder="Command (e.g. npx, node, python)"
+              placeholder={t("command")}
               placeholderTextColor={theme.textTertiary}
               value={command}
               onChangeText={setCommand}
             />
 
-            <ThemedText style={styles.label}>
-              Arguments (space separated)
-            </ThemedText>
+            <ThemedText style={styles.label}>{t("arguments")}</ThemedText>
             <TextInput
               style={[
                 styles.input,
@@ -124,9 +129,9 @@ export default function MCPServersScreen() {
 
             <View style={styles.formRow}>
               <Button onPress={() => setIsAdding(false)} variant="outline">
-                Cancel
+                {t("cancel")}
               </Button>
-              <Button onPress={handleAddServer}>Connect</Button>
+              <Button onPress={handleAddServer}>{t("connect")}</Button>
             </View>
           </View>
         )}

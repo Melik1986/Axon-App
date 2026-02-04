@@ -25,17 +25,13 @@ export default function PrivacyScreen() {
       <ThemedText type="h2" style={styles.title}>
         {t("privacyPolicy")}
       </ThemedText>
-      <ThemedText style={styles.text}>
-        Мы серьезно относимся к вашей конфиденциальности. Ваши бизнес-данные
-        обрабатываются безопасно и не передаются третьим лицам без вашего
-        согласия.
-      </ThemedText>
+      <ThemedText style={styles.text}>{t("privacyIntro")}</ThemedText>
       <ThemedText type="h4" style={styles.sectionTitle}>
-        Сбор данных
+        {t("dataCollection")}
       </ThemedText>
-      <ThemedText style={styles.text}>
-        Axon собирает только те данные, которые необходимы для работы ассистента
-        и улучшения качества ответов.
+      <ThemedText style={styles.text}>{t("dataCollectionDesc")}</ThemedText>
+      <ThemedText style={[styles.text, { marginTop: Spacing.xl }]}>
+        {t("privacyPolicyFull")}
       </ThemedText>
     </ScrollView>
   );

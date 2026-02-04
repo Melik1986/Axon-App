@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as jwt from "jsonwebtoken";
 import { AuthUser, AuthSession } from "./auth.types";
@@ -18,7 +18,7 @@ export class AuthService {
   private readonly accessTokenExpiry = "24h";
   private readonly refreshTokenExpiry = "30d";
 
-  constructor(private configService: ConfigService) {
+  constructor(@Inject(ConfigService) private configService: ConfigService) {
     this.jwtSecret =
       this.configService.get("SESSION_SECRET") ||
       "axon-secret-key-change-in-production";

@@ -26,8 +26,6 @@ const springConfig: WithSpringConfig = {
   overshootClamping: true,
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 export function Button({
   onPress,
   children,
@@ -78,11 +76,7 @@ export function Button({
   };
 
   return (
-    <AnimatedPressable
-      onPress={disabled ? undefined : onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
-      disabled={disabled}
+    <Animated.View
       style={[
         styles.button,
         {
@@ -95,13 +89,21 @@ export function Button({
         animatedStyle,
       ]}
     >
-      <ThemedText
-        type="body"
-        style={[styles.buttonText, { color: getTextColor() }]}
+      <Pressable
+        onPress={disabled ? undefined : onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled}
+        style={styles.pressable}
       >
-        {children}
-      </ThemedText>
-    </AnimatedPressable>
+        <ThemedText
+          type="body"
+          style={[styles.buttonText, { color: getTextColor() }]}
+        >
+          {children}
+        </ThemedText>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -112,6 +114,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: Spacing["2xl"],
+  },
+  pressable: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
   buttonText: {
     fontWeight: "600",

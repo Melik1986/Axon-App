@@ -10,11 +10,13 @@ import {
   Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
@@ -29,7 +31,9 @@ interface Skill {
 
 export default function SkillStoreScreen() {
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +66,7 @@ export default function SkillStoreScreen() {
 
   const handleAddSkill = async () => {
     if (!name || !code) {
-      Alert.alert("Error", "Name and code are required");
+      Alert.alert(t("error"), t("configurationRequired"));
       return;
     }
 
@@ -99,10 +103,10 @@ export default function SkillStoreScreen() {
   };
 
   const deleteSkill = async (id: string) => {
-    Alert.alert("Delete", "Delete this skill?", [
-      { text: "Cancel", style: "cancel" },
+    Alert.alert(t("delete"), t("deleteDocumentConfirm"), [
+      { text: t("cancel"), style: "cancel" },
       {
-        text: "Delete",
+        text: t("delete"),
         style: "destructive",
         onPress: async () => {
           await apiRequest("DELETE", `/api/skills/${id}`);
@@ -117,12 +121,15 @@ export default function SkillStoreScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundDefault }]}
     >
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
+        contentContainerStyle={{
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.xl,
+        }}
       >
         <View style={styles.header}>
-          <ThemedText style={styles.title}>Skill Store</ThemedText>
+          <ThemedText style={styles.title}>{t("skillStore")}</ThemedText>
           <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Custom scripts and tools for your agent
+            {t("skillStoreDesc")}
           </ThemedText>
         </View>
 
@@ -132,7 +139,7 @@ export default function SkillStoreScreen() {
             variant="outline"
             style={styles.addBtn}
           >
-            Create New Skill
+            {t("createNewSkill")}
           </Button>
         ) : (
           <View
@@ -141,14 +148,14 @@ export default function SkillStoreScreen() {
               { backgroundColor: theme.backgroundSecondary },
             ]}
           >
-            <ThemedText style={styles.formTitle}>New Skill</ThemedText>
+            <ThemedText style={styles.formTitle}>{t("newSkill")}</ThemedText>
 
             <TextInput
               style={[
                 styles.input,
                 { color: theme.text, borderColor: theme.border },
               ]}
-              placeholder="Skill Name"
+              placeholder={t("skillName")}
               placeholderTextColor={theme.textTertiary}
               value={name}
               onChangeText={setName}
@@ -159,13 +166,13 @@ export default function SkillStoreScreen() {
                 styles.input,
                 { color: theme.text, borderColor: theme.border },
               ]}
-              placeholder="Description"
+              placeholder={t("description")}
               placeholderTextColor={theme.textTertiary}
               value={description}
               onChangeText={setDescription}
             />
 
-            <ThemedText style={styles.label}>JavaScript Code</ThemedText>
+            <ThemedText style={styles.label}>{t("code")}</ThemedText>
             <TextInput
               style={[
                 styles.input,
@@ -179,9 +186,9 @@ export default function SkillStoreScreen() {
 
             <View style={styles.formRow}>
               <Button onPress={() => setIsAdding(false)} variant="outline">
-                Cancel
+                {t("cancel")}
               </Button>
-              <Button onPress={handleAddSkill}>Save Skill</Button>
+              <Button onPress={handleAddSkill}>{t("saveSkill")}</Button>
             </View>
           </View>
         )}
@@ -244,7 +251,7 @@ export default function SkillStoreScreen() {
             {skills.length === 0 && !isAdding && (
               <View style={styles.empty}>
                 <ThemedText style={{ color: theme.textTertiary }}>
-                  No custom skills yet.
+                  {t("noSkillsYet")}
                 </ThemedText>
               </View>
             )}

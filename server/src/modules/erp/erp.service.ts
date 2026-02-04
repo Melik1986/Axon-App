@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   ErpConfig,
@@ -16,7 +16,8 @@ export class ErpService {
   private isConfigured: boolean;
 
   constructor(
-    private configService: ConfigService,
+    @Inject(ConfigService) private configService: ConfigService,
+    @Inject(CircuitBreakerService)
     private circuitBreaker: CircuitBreakerService,
   ) {
     this.config = {

@@ -11,18 +11,15 @@ import {
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import * as DocumentPicker from "expo-document-picker";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { LibraryStackParamList } from "@/navigation/LibraryStackNavigator";
-import {
-  AnimatedDocumentIcon,
-  AnimatedSearchIcon,
-} from "@/components/AnimatedIcons";
+import { AnimatedSearchIcon } from "@/components/AnimatedIcons";
 import { ThemedText } from "@/components/ThemedText";
-import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
@@ -53,7 +50,7 @@ const DocumentTypeIcon = ({
   size: number;
   color: string;
 }) => {
-  return <AnimatedDocumentIcon size={size} color={color} />;
+  return <Ionicons name="document-text-outline" size={size} color={color} />;
 };
 
 function PlusIcon({ size = 24, color }: { size?: number; color: string }) {
@@ -416,12 +413,21 @@ export default function LibraryScreen() {
         ]}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View>
-            <EmptyState
-              title={t("emptyLibrary")}
-              subtitle={t("uploadDocsHint")}
-              image={require("../../assets/images/empty-library.png")}
+          <View style={styles.emptyContainer}>
+            <Ionicons
+              name="document-text-outline"
+              size={120}
+              color={theme.textTertiary}
+              style={{ marginBottom: Spacing.lg, opacity: 0.5 }}
             />
+            <ThemedText type="h4" style={{ marginBottom: Spacing.sm }}>
+              {t("emptyLibrary")}
+            </ThemedText>
+            <ThemedText
+              style={{ color: theme.textSecondary, marginBottom: Spacing.xl }}
+            >
+              {t("uploadDocsHint")}
+            </ThemedText>
             <View style={styles.demoButtonContainer}>
               <Pressable
                 style={[
@@ -538,8 +544,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
   },
-  deleteButton: {
-    padding: Spacing.sm,
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.xl * 2,
   },
   demoButtonContainer: {
     alignItems: "center",

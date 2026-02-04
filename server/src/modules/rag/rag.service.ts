@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 import { PDFParse } from "pdf-parse";
@@ -21,7 +21,8 @@ export class RagService {
   // OpenAI client is created per-request via EphemeralClientPoolService
 
   constructor(
-    private configService: ConfigService,
+    @Inject(ConfigService) private configService: ConfigService,
+    @Inject(EphemeralClientPoolService)
     private ephemeralClientPool: EphemeralClientPoolService,
   ) {}
 

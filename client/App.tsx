@@ -111,16 +111,22 @@ export default function App() {
     return null;
   }
 
-  return (
-    <React.StrictMode>
-      <ErrorBoundary>
-        <QueryClientProvider client={queryClient}>
-          <SafeAreaProvider>
-            <AppContent />
-          </SafeAreaProvider>
-        </QueryClientProvider>
-      </ErrorBoundary>
-    </React.StrictMode>
+  const content = (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <AppContent />
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+
+  const shouldUseStrictMode = typeof __DEV__ !== "undefined" ? !__DEV__ : true;
+
+  return shouldUseStrictMode ? (
+    <React.StrictMode>{content}</React.StrictMode>
+  ) : (
+    content
   );
 }
 

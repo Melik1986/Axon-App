@@ -6,7 +6,7 @@
   "scripts": {
     "expo:dev": "EXPO_PACKAGER_PROXY_URL=https://$REPLIT_DEV_DOMAIN REACT_NATIVE_PACKAGER_HOSTNAME=$REPLIT_DEV_DOMAIN EXPO_PUBLIC_DOMAIN=$REPLIT_DEV_DOMAIN:5000 npx expo start --localhost",
     "expo:dev:local": "npx expo start",
-    "server:dev": "cross-env NODE_ENV=development npx ts-node --swc -P server/tsconfig.json server/src/main.ts",
+    "server:dev": "cross-env NODE_ENV=development tsx server/src/main.ts",
     "server:dev:local": "npm run server:dev",
     "server:nest:dev": "cross-env NODE_ENV=development tsx server/src/main.ts",
     "server:nest:build": "cross-env NODE_OPTIONS=--max-old-space-size=8192 tsc -p server/tsconfig.json",
@@ -19,7 +19,7 @@
     "lint": "npx eslint .",
     "lint:fix": "npx eslint . --fix",
     "test": "jest",
-    "test:server": "jest --testPathPattern=server/",
+    "test:server": "jest --testPathPatterns=server/",
     "check:types": "tsc --noEmit",
     "check:format": "prettier --check \"**/*.{js,ts,tsx,css,json}\"",
     "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\"",

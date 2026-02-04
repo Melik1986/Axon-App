@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 import { LlmProvider, LlmSettings, ProviderConfig } from "./llm.types";
@@ -7,7 +7,7 @@ import { LlmProvider, LlmSettings, ProviderConfig } from "./llm.types";
 export class LlmService {
   private providerConfigs: Record<LlmProvider, ProviderConfig>;
 
-  constructor(private configService: ConfigService) {
+  constructor(@Inject(ConfigService) private configService: ConfigService) {
     this.providerConfigs = {
       replit: {
         baseUrl:
@@ -97,15 +97,22 @@ export class LlmService {
 
   createClient(settings?: LlmSettings): OpenAI {
     if (!settings || settings.provider === "replit") {
+      const apiKey =
+        this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY") || "";
+      const baseURL =
+        this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL") ||
+        "https://api.openai.com/v1";
+      if (!apiKey) {
+        throw new Error("API key is required for provider: replit");
+      }
       return new OpenAI({
-        apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
-        baseURL: this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
+        apiKey,
+        baseURL,
       });
     }
 
     const config = this.getProviderConfig(settings);
 
-    // Replit and Ollama don't require API key
     if (!config.apiKey && settings.provider !== "ollama") {
       throw new Error(`API key is required for provider: ${settings.provider}`);
     }

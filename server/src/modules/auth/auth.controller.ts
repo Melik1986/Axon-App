@@ -9,13 +9,15 @@ import {
   Req,
   Res,
   UnauthorizedException,
+  Inject,
 } from "@nestjs/common";
 import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
 import { Response, Request } from "express";
 import { AuthService } from "./auth.service";
-import { RefreshRequest, AuthUser } from "./auth.types";
+import { RefreshRequest, AuthUser, AuthSession } from "./auth.types";
 import { AuthGuard } from "./auth.guard";
 import { SERVER_PUBLIC_KEY } from "../../config/jwk.config";
+import * as jwt from "jsonwebtoken";
 
 interface AuthenticatedRequest extends Request {
   user?: AuthUser;
@@ -24,7 +26,7 @@ interface AuthenticatedRequest extends Request {
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(@Inject(AuthService) private readonly authService: AuthService) {}
 
   @Get("login")
   async login(@Query("redirect") redirect: string, @Res() res: Response) {
@@ -166,16 +168,82 @@ export class AuthController {
 
   @Post("dev-login")
   async devLogin(@Body() body: { email?: string; name?: string }) {
+    // #region agent log
+    fetch("http://127.0.0.1:7244/ingest/681008b1-b8ba-4a62-9a48-e4a81c73b15d", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "auth.controller.ts:devLogin:entry",
+        message: "dev-login request reached server",
+        data: {},
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        hypothesisId: "H2",
+      }),
+    }).catch(() => {});
+    // #endregion
     const email = body.email || "dev@axon.local";
     const name = body.name || "Dev User";
 
-    const result = await this.authService.authenticateFromSession({
+    const user: AuthUser = {
       id: `dev-${Date.now()}`,
       email,
       name,
       picture: null,
-    });
+      replitId: null,
+    };
+
+    if (
+      !this.authService ||
+      typeof this.authService.authenticateFromSession !== "function"
+    ) {
+      return this.createDevSession(user);
+    }
+
+    const result = await this.authService.authenticateFromSession(user);
 
     return result;
+  }
+
+  private createDevSession(user: AuthUser): {
+    success: boolean;
+    user: AuthUser;
+    session: AuthSession;
+  } {
+    const jwtSecret =
+      process.env.SESSION_SECRET || "axon-secret-key-change-in-production";
+    const accessToken = jwt.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        replitId: user.replitId,
+      },
+      jwtSecret,
+      { expiresIn: "24h" },
+    );
+    const refreshToken = jwt.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        replitId: user.replitId,
+        type: "refresh",
+      },
+      jwtSecret,
+      { expiresIn: "30d" },
+    );
+
+    return {
+      success: true,
+      user,
+      session: {
+        accessToken,
+        refreshToken,
+        expiresIn: 24 * 60 * 60,
+      },
+    };
   }
 }

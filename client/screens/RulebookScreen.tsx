@@ -10,11 +10,13 @@ import {
   Switch,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useHeaderHeight } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
@@ -29,11 +31,21 @@ interface Rule {
   enabled: boolean;
 }
 
+interface Document {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+}
+
 export default function RulebookScreen() {
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
+  const { t } = useTranslation();
 
   const [rules, setRules] = useState<Rule[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -48,28 +60,38 @@ export default function RulebookScreen() {
   >("reject");
   const [message, setMessage] = useState("Quantity cannot be negative");
 
-  const fetchRules = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await apiRequest("GET", "/api/rules");
-      if (response.ok) {
-        const data = await response.json();
+      const [rulesRes, docsRes] = await Promise.all([
+        apiRequest("GET", "/api/rules"),
+        apiRequest("GET", "/api/documents"),
+      ]);
+
+      if (rulesRes.ok) {
+        const data = await rulesRes.json();
         setRules(data);
       }
+      if (docsRes.ok) {
+        const data = await docsRes.json();
+        // Filter documents that might be rules (e.g., .md, .json, .txt)
+        // For now, show all as the user requested visibility
+        setDocuments(data);
+      }
     } catch (error) {
-      AppLogger.error("Failed to fetch rules:", error);
+      AppLogger.error("Failed to fetch data:", error);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchRules();
+    fetchData();
   }, []);
 
   const handleAddRule = async () => {
     if (!name || !condition) {
-      Alert.alert("Error", "Name and condition are required");
+      Alert.alert(t("error"), t("configurationRequired"));
       return;
     }
 
@@ -87,11 +109,11 @@ export default function RulebookScreen() {
         setIsAdding(false);
         setName("");
         setDescription("");
-        fetchRules();
+        fetchData();
       }
     } catch (error) {
       AppLogger.error("Failed to add rule:", error);
-      Alert.alert("Error", "Failed to save rule");
+      Alert.alert(t("error"), "Failed to save rule");
     }
   };
 
@@ -101,7 +123,7 @@ export default function RulebookScreen() {
         enabled: !rule.enabled,
       });
       if (response.ok) {
-        fetchRules();
+        fetchData();
       }
     } catch (error) {
       AppLogger.error("Failed to toggle rule:", error);
@@ -109,27 +131,23 @@ export default function RulebookScreen() {
   };
 
   const deleteRule = async (id: string) => {
-    Alert.alert(
-      "Confirm Delete",
-      "Are you sure you want to delete this rule?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              const response = await apiRequest("DELETE", `/api/rules/${id}`);
-              if (response.ok) {
-                fetchRules();
-              }
-            } catch (error) {
-              AppLogger.error("Failed to delete rule:", error);
+    Alert.alert(t("delete"), t("deleteRuleConfirm"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("delete"),
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const response = await apiRequest("DELETE", `/api/rules/${id}`);
+            if (response.ok) {
+              fetchData();
             }
-          },
+          } catch (error) {
+            AppLogger.error("Failed to delete rule:", error);
+          }
         },
-      ],
-    );
+      },
+    ]);
   };
 
   return (
@@ -137,12 +155,15 @@ export default function RulebookScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundDefault }]}
     >
       <ScrollView
-        contentContainerStyle={{ paddingBottom: insets.bottom + Spacing.xl }}
+        contentContainerStyle={{
+          paddingTop: headerHeight + Spacing.lg,
+          paddingBottom: insets.bottom + Spacing.xl,
+        }}
       >
         <View style={styles.header}>
-          <ThemedText style={styles.title}>Agent Rules</ThemedText>
+          <ThemedText style={styles.title}>{t("agentRules")}</ThemedText>
           <ThemedText style={[styles.subtitle, { color: theme.textSecondary }]}>
-            Define constraints for your AI agent
+            {t("agentRulesDesc")}
           </ThemedText>
         </View>
 
@@ -152,7 +173,7 @@ export default function RulebookScreen() {
             variant="outline"
             style={styles.addBtn}
           >
-            Add New Rule
+            {t("addNewRule")}
           </Button>
         ) : (
           <View
@@ -161,14 +182,14 @@ export default function RulebookScreen() {
               { backgroundColor: theme.backgroundSecondary },
             ]}
           >
-            <ThemedText style={styles.formTitle}>New Rule</ThemedText>
+            <ThemedText style={styles.formTitle}>{t("newRule")}</ThemedText>
 
             <TextInput
               style={[
                 styles.input,
                 { color: theme.text, borderColor: theme.border },
               ]}
-              placeholder="Rule Name (e.g. Prevent Negative Quantity)"
+              placeholder={t("ruleNamePlaceholder")}
               placeholderTextColor={theme.textTertiary}
               value={name}
               onChangeText={setName}
@@ -179,13 +200,13 @@ export default function RulebookScreen() {
                 styles.input,
                 { color: theme.text, borderColor: theme.border },
               ]}
-              placeholder="Description"
+              placeholder={t("description")}
               placeholderTextColor={theme.textTertiary}
               value={description}
               onChangeText={setDescription}
             />
 
-            <ThemedText style={styles.label}>Action</ThemedText>
+            <ThemedText style={styles.label}>{t("action")}</ThemedText>
             <View style={styles.actionRow}>
               {(["reject", "warn", "require_confirmation"] as const).map(
                 (a) => (
@@ -215,19 +236,19 @@ export default function RulebookScreen() {
               )}
             </View>
 
-            <ThemedText style={styles.label}>Message to User</ThemedText>
+            <ThemedText style={styles.label}>{t("messageToUser")}</ThemedText>
             <TextInput
               style={[
                 styles.input,
                 { color: theme.text, borderColor: theme.border },
               ]}
-              placeholder="e.g. Total amount exceeds limit"
+              placeholder={t("messagePlaceholder")}
               placeholderTextColor={theme.textTertiary}
               value={message}
               onChangeText={setMessage}
             />
 
-            <ThemedText style={styles.label}>Condition (JSON)</ThemedText>
+            <ThemedText style={styles.label}>{t("conditionJson")}</ThemedText>
             <TextInput
               style={[
                 styles.input,
@@ -241,9 +262,9 @@ export default function RulebookScreen() {
 
             <View style={styles.formRow}>
               <Button onPress={() => setIsAdding(false)} variant="outline">
-                Cancel
+                {t("cancel")}
               </Button>
-              <Button onPress={handleAddRule}>Save Rule</Button>
+              <Button onPress={handleAddRule}>{t("saveRule")}</Button>
             </View>
           </View>
         )}
@@ -314,8 +335,64 @@ export default function RulebookScreen() {
             {rules.length === 0 && !isAdding && (
               <View style={styles.empty}>
                 <ThemedText style={{ color: theme.textTertiary }}>
-                  No rules defined yet.
+                  {t("noRulesYet")}
                 </ThemedText>
+              </View>
+            )}
+
+            {/* Document Rules Section */}
+            {documents.length > 0 && (
+              <View style={{ marginTop: Spacing.xl }}>
+                <ThemedText
+                  type="h4"
+                  style={{
+                    marginBottom: Spacing.md,
+                    paddingHorizontal: Spacing.xs,
+                  }}
+                >
+                  {t("documents")}
+                </ThemedText>
+                {documents.map((doc) => (
+                  <View
+                    key={doc.id}
+                    style={[
+                      styles.ruleCard,
+                      {
+                        backgroundColor: theme.backgroundSecondary,
+                        opacity: 0.8,
+                      },
+                    ]}
+                  >
+                    <View style={styles.ruleHeader}>
+                      <View style={{ flex: 1 }}>
+                        <View
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <Ionicons
+                            name="document-text-outline"
+                            size={16}
+                            color={theme.text}
+                          />
+                          <ThemedText style={styles.ruleName}>
+                            {doc.name}
+                          </ThemedText>
+                        </View>
+                        <ThemedText
+                          style={[
+                            styles.ruleDesc,
+                            { color: theme.textSecondary },
+                          ]}
+                        >
+                          {doc.type} • {doc.status}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  </View>
+                ))}
               </View>
             )}
           </View>

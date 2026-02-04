@@ -243,7 +243,7 @@ export default function ChatScreen() {
     <View style={styles.emptyContainer}>
       <EmptyState
         image={require("../../assets/images/icon.png")}
-        imageStyle={{ borderRadius: 80, opacity: 1 }}
+        imageStyle={{ borderRadius: 80 }}
         title={t("startConversation")}
         subtitle={t("askJarvis")}
       >
@@ -328,9 +328,9 @@ export default function ChatScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior={Platform.OS === "ios" ? "padding" : "padding"}
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
       <FlatList
         ref={flatListRef}
@@ -338,7 +338,7 @@ export default function ChatScreen() {
         contentContainerStyle={[
           styles.listContent,
           {
-            paddingTop: headerHeight + Spacing.lg,
+            paddingTop: headerHeight,
             paddingBottom: tabBarHeight + 100,
           },
           messages.length === 0 && styles.emptyListContent,
@@ -359,7 +359,9 @@ export default function ChatScreen() {
         style={[
           styles.inputContainer,
           {
-            paddingBottom: insets.bottom + Spacing.lg,
+            paddingBottom:
+              Math.max(insets.bottom, Spacing.md) +
+              (Platform.OS === "android" ? 70 : 40),
             backgroundColor: theme.backgroundRoot,
           },
         ]}
@@ -385,28 +387,25 @@ export default function ChatScreen() {
               multiline
               maxLength={2000}
             />
-            <Pressable
-              style={[
-                styles.sendButton,
-                !inputText.trim() && styles.sendButtonDisabled,
-              ]}
-              onPress={sendMessage}
-              disabled={!inputText.trim() || isStreaming}
-            >
-              <Ionicons
-                name="send"
-                size={20}
-                color={inputText.trim() ? theme.primary : theme.textTertiary}
-              />
-            </Pressable>
+            {inputText.trim() ? (
+              <Pressable
+                style={styles.sendButton}
+                onPress={sendMessage}
+                disabled={isStreaming}
+              >
+                <Ionicons name="send" size={20} color={theme.primary} />
+              </Pressable>
+            ) : (
+              <View style={{ marginRight: -4 }}>
+                <VoiceButton
+                  isRecording={isRecording}
+                  onPress={handleVoicePress}
+                  disabled={isStreaming}
+                  size={40}
+                />
+              </View>
+            )}
           </View>
-        </View>
-        <View style={styles.voiceButtonContainer}>
-          <VoiceButton
-            isRecording={isRecording}
-            onPress={handleVoicePress}
-            disabled={isStreaming}
-          />
         </View>
       </View>
     </KeyboardAvoidingView>
@@ -424,11 +423,12 @@ const styles = StyleSheet.create({
     flexGrow: 1,
   },
   emptyListContent: {
-    justifyContent: "center",
+    justifyContent: "flex-end",
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "flex-end",
+    paddingBottom: Spacing.xl,
   },
   suggestions: {
     flexDirection: "row",
@@ -455,31 +455,38 @@ const styles = StyleSheet.create({
   inputRow: {
     flexDirection: "row",
     alignItems: "flex-end",
-    gap: Spacing.sm,
+    paddingBottom: Platform.OS === "android" ? 4 : 0,
   },
   textInputContainer: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "flex-end",
-    borderRadius: BorderRadius.lg,
+    alignItems: "center",
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    minHeight: 48,
   },
   textInput: {
     flex: 1,
     fontSize: 16,
     maxHeight: 100,
     paddingVertical: Spacing.xs,
+    marginRight: Spacing.sm,
   },
   sendButton: {
-    padding: Spacing.sm,
+    padding: Spacing.xs,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  voiceButtonExternal: {
+    marginLeft: Spacing.sm,
+    marginBottom: 4,
   },
   sendButtonDisabled: {
     opacity: 0.5,
   },
   voiceButtonContainer: {
-    alignItems: "center",
-    marginTop: Spacing.md,
+    display: "none",
   },
 });

@@ -12,6 +12,30 @@ import { AppModule } from "./app.module";
 import { AppLogger } from "./utils/logger";
 import { LlmProviderExceptionFilter } from "./filters/llm-provider-exception.filter";
 
+const DEBUG_LOG_PATH = path.join(process.cwd(), ".cursor", "debug.log");
+function debugLog(payload: Record<string, unknown>): void {
+  try {
+    const dir = path.dirname(DEBUG_LOG_PATH);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    fs.appendFileSync(DEBUG_LOG_PATH, JSON.stringify(payload) + "\n", "utf8");
+  } catch {
+    // ignore
+  }
+}
+
+// #region agent log — very first line of execution
+debugLog({
+  location: "main.ts:top",
+  message: "main.ts loaded",
+  data: { cwd: process.cwd() },
+  timestamp: Date.now(),
+  sessionId: "debug-session",
+  hypothesisId: "H0",
+});
+// #endregion
+
 function getAppName(): string {
   try {
     const appJsonPath = path.resolve(process.cwd(), "app.json");
@@ -59,7 +83,27 @@ function serveExpoManifest(platform: string, res: express.Response) {
 }
 
 async function bootstrap() {
+  // #region agent log
+  debugLog({
+    location: "main.ts:bootstrap:entry",
+    message: "bootstrap entry",
+    data: { cwd: process.cwd() },
+    timestamp: Date.now(),
+    sessionId: "debug-session",
+    hypothesisId: "H1",
+  });
+  // #endregion
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // #region agent log
+  debugLog({
+    location: "main.ts:bootstrap:afterCreate",
+    message: "NestFactory.create done",
+    data: {},
+    timestamp: Date.now(),
+    sessionId: "debug-session",
+    hypothesisId: "H2",
+  });
+  // #endregion
   const expressApp = app.getHttpAdapter().getInstance();
 
   // Enable CORS with dynamic origins
@@ -197,9 +241,46 @@ async function bootstrap() {
     },
   );
 
-  const port = process.env.PORT || 5000;
-  await app.listen(port, "0.0.0.0");
-  AppLogger.info(`Nest.js server running on port ${port} (0.0.0.0)`);
+  let port = Number(process.env.PORT) || 5000;
+  const maxPortAttempts = 10;
+
+  for (let attempt = 0; attempt < maxPortAttempts; attempt++) {
+    try {
+      await app.listen(port, "0.0.0.0");
+      AppLogger.info(`Nest.js server running on port ${port} (0.0.0.0)`);
+      if (attempt > 0) {
+        AppLogger.warn(
+          `Port ${Number(process.env.PORT) || 5000} was in use; using ${port}. Set PORT=${port} or free the default port.`,
+        );
+      }
+      return;
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === "EADDRINUSE" && attempt < maxPortAttempts - 1) {
+        AppLogger.warn(`Port ${port} in use, trying ${port + 1}...`);
+        port += 1;
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
-bootstrap();
+// #region agent log
+bootstrap().catch((err: unknown) => {
+  debugLog({
+    location: "main.ts:bootstrap:catch",
+    message: "bootstrap rejected",
+    data: {
+      errMessage: err instanceof Error ? err.message : String(err),
+      errName: err instanceof Error ? err.name : undefined,
+      stack: err instanceof Error ? err.stack : undefined,
+    },
+    timestamp: Date.now(),
+    sessionId: "debug-session",
+    hypothesisId: "H1",
+  });
+  AppLogger.error("Bootstrap failed", err);
+  process.exit(1);
+});
+// #endregion

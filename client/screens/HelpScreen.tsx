@@ -25,23 +25,15 @@ export default function HelpScreen() {
       <ThemedText type="h2" style={styles.title}>
         {t("helpSupport")}
       </ThemedText>
-      <ThemedText style={styles.text}>
-        Axon - это ваш интеллектуальный помощник для работы с бизнес-данными.
-      </ThemedText>
+      <ThemedText style={styles.text}>{t("helpIntro")}</ThemedText>
       <ThemedText type="h4" style={styles.sectionTitle}>
-        Как пользоваться чатом?
+        {t("howToUseChat")}
       </ThemedText>
-      <ThemedText style={styles.text}>
-        Просто введите ваш запрос или используйте голосовой ввод. Axon может
-        проверять остатки товаров, создавать счета и отвечать на вопросы по
-        регламентам.
-      </ThemedText>
+      <ThemedText style={styles.text}>{t("howToUseChatDesc")}</ThemedText>
       <ThemedText type="h4" style={styles.sectionTitle}>
-        Поддержка
+        {t("support")}
       </ThemedText>
-      <ThemedText style={styles.text}>
-        Если у вас возникли вопросы, свяжитесь с нами по почте: support@axon.ai
-      </ThemedText>
+      <ThemedText style={styles.text}>{t("supportDesc")}</ThemedText>
     </ScrollView>
   );
 }
