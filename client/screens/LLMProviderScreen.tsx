@@ -24,6 +24,7 @@ import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useBiometricAuth } from "@/hooks/useBiometricAuth";
+import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 type LLMProvider = "replit" | "openai" | "ollama" | "groq" | "custom";
@@ -177,6 +178,7 @@ export default function LLMProviderScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
+  useProtectScreen();
 
   const { llm, setLLMSettings } = useSettingsStore();
 
