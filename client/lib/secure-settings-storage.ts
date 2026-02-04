@@ -3,19 +3,14 @@ import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
 import { StateStorage } from "zustand/middleware";
 import { AppLogger } from "./logger";
+import { AuditService } from "./audit-logger";
 
 /**
- * List of sensitive paths in the settings store that should be stored in SecureStore.
- * Format: 'parent.child' or 'parent.child.grandchild'
+ * List of standard sensitive paths (LLM, RAG) - Stored with WHEN_UNLOCKED
  */
-export const SETTINGS_SENSITIVE_PATHS = [
+export const SETTINGS_STD_PATHS = [
   "llm.baseUrl",
   "llm.apiKey",
-  "erp.url",
-  "erp.apiKey",
-  "erp.username",
-  "erp.password",
-  "erp.specUrl",
   "rag.qdrant.url",
   "rag.qdrant.apiKey",
   "rag.supabase.url",
@@ -23,8 +18,24 @@ export const SETTINGS_SENSITIVE_PATHS = [
 ];
 
 /**
- * List of sensitive paths in the auth store.
+ * List of high security paths (ERP) - Stored with requireAuthentication (if supported)
  */
+export const SETTINGS_HIGH_SEC_PATHS = [
+  "erp.url",
+  "erp.apiKey",
+  "erp.username",
+  "erp.password",
+  "erp.specUrl",
+];
+
+/**
+ * Combined list for backward compatibility or general usage
+ */
+export const SETTINGS_SENSITIVE_PATHS = [
+  ...SETTINGS_STD_PATHS,
+  ...SETTINGS_HIGH_SEC_PATHS,
+];
+
 export const AUTH_SENSITIVE_PATHS = ["session"];
 
 /**
@@ -59,7 +70,7 @@ function setNestedValue(
 }
 
 /**
- * Helper to remove nested value (sets to empty string or null)
+ * Helper to remove nested value (sets to empty string)
  */
 function clearNestedValue(obj: Record<string, unknown>, path: string): void {
   const parts = path.split(".");
@@ -78,17 +89,17 @@ function clearNestedValue(obj: Record<string, unknown>, path: string): void {
 
 /**
  * Creates a hybrid storage that stores sensitive fields in SecureStore and others in AsyncStorage.
- *
- * @param storageName The name of the storage (key in AsyncStorage)
- * @param sensitivePaths Array of dot-notated paths to sensitive fields
- * @param secureKey The key to use in SecureStore
+ * Implements Strict Migration and Tiered Security.
  */
 export function createHybridStorage(
   storageName: string,
-  sensitivePaths: string[],
+  stdPaths: string[],
   secureKey: string,
+  highSecPaths: string[] = [],
+  highSecKey: string = "",
 ): StateStorage {
   const isWeb = Platform.OS === "web";
+  const migrationKey = `${storageName}-migration-v1-done`;
 
   return {
     getItem: async (name: string): Promise<string | null> => {
@@ -103,56 +114,112 @@ export function createHybridStorage(
         return publicDataStr;
       }
 
-      // If state doesn't have version/state wrapper (Zustand persist format), handle it
       const actualState = (state.state as Record<string, unknown>) || state;
 
       if (isWeb) {
         return publicDataStr;
       }
 
-      // 2. Get sensitive data from SecureStore
-      const secureDataStr = await SecureStore.getItemAsync(secureKey);
-      let secureData: Record<string, unknown> = {};
+      // 2. Check Migration Status
+      const migrationDone = await AsyncStorage.getItem(migrationKey);
 
-      if (secureDataStr) {
-        try {
-          secureData = JSON.parse(secureDataStr);
-        } catch {
-          AppLogger.error(`Failed to parse secure data for ${secureKey}`);
-        }
-      } else {
-        // 3. Migration logic: Check if secrets are in AsyncStorage but not in SecureStore
-        const newSecureData: Record<string, unknown> = {};
-        let foundAnySecret = false;
-        sensitivePaths.forEach((path) => {
+      if (!migrationDone) {
+        // --- STRICT MIGRATION LOGIC ---
+        AppLogger.info(`Starting strict migration for ${storageName}`);
+
+        // Extract secrets from AsyncStorage state
+        const stdSecrets: Record<string, unknown> = {};
+        const highSecrets: Record<string, unknown> = {};
+
+        stdPaths.forEach((path) => {
           const val = getNestedValue(actualState, path);
           if (val && val !== "") {
-            newSecureData[path] = val;
-            foundAnySecret = true;
+            stdSecrets[path] = val;
           }
         });
 
-        if (foundAnySecret) {
-          secureData = newSecureData;
-          // Store secrets in SecureStore
+        highSecPaths.forEach((path) => {
+          const val = getNestedValue(actualState, path);
+          if (val && val !== "") {
+            highSecrets[path] = val;
+          }
+        });
+
+        // Write to SecureStore
+        if (Object.keys(stdSecrets).length > 0) {
           await SecureStore.setItemAsync(
             secureKey,
-            JSON.stringify(secureData),
+            JSON.stringify(stdSecrets),
+            { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY },
+          );
+        }
+
+        if (Object.keys(highSecrets).length > 0 && highSecKey) {
+          await SecureStore.setItemAsync(
+            highSecKey,
+            JSON.stringify(highSecrets),
             {
               keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+              requireAuthentication: true, // Tiered Security
             },
           );
+        }
 
-          // Clean up AsyncStorage (optional but recommended)
-          sensitivePaths.forEach((path) => clearNestedValue(actualState, path));
-          await AsyncStorage.setItem(name, JSON.stringify(state));
+        // CRITICAL: Clear secrets from public state
+        [...stdPaths, ...highSecPaths].forEach((path) =>
+          clearNestedValue(actualState, path),
+        );
+
+        // Write cleaned state back to AsyncStorage
+        await AsyncStorage.setItem(name, JSON.stringify(state));
+
+        // Set migration flag
+        await AsyncStorage.setItem(migrationKey, "true");
+        await AuditService.logEvent(
+          "MIGRATION_SUCCESS",
+          `Migrated ${storageName}`,
+        );
+        AppLogger.info(`Strict migration completed for ${storageName}`);
+      }
+
+      // 3. Load Secrets from SecureStore
+      // Standard Secrets
+      const stdDataStr = await SecureStore.getItemAsync(secureKey);
+      if (stdDataStr) {
+        try {
+          const stdData = JSON.parse(stdDataStr);
+          Object.entries(stdData).forEach(([path, value]) => {
+            setNestedValue(actualState, path, value);
+          });
+        } catch (e) {
+          AppLogger.error(`Failed to parse std secure data`, e);
         }
       }
 
-      // 4. Merge secure data back into state
-      Object.entries(secureData).forEach(([path, value]) => {
-        setNestedValue(actualState, path, value);
-      });
+      // High Security Secrets
+      if (highSecKey) {
+        try {
+          // specific options for retrieval might be needed depending on platform,
+          // but getItemAsync usually prompts if requireAuthentication was used on set
+          const highDataStr = await SecureStore.getItemAsync(highSecKey, {
+            requireAuthentication: true,
+          });
+          if (highDataStr) {
+            const highData = JSON.parse(highDataStr);
+            Object.entries(highData).forEach(([path, value]) => {
+              setNestedValue(actualState, path, value);
+            });
+          }
+        } catch (e) {
+          // If user cancels auth or it fails, we just don't load these secrets
+          // The app should handle missing credentials gracefully (e.g. ask to re-login to ERP)
+          AppLogger.warn(`Could not load high security data: ${e}`);
+          await AuditService.logEvent(
+            "SECURE_STORE_ERROR",
+            "Failed to load high security keys",
+          );
+        }
+      }
 
       return JSON.stringify(state);
     },
@@ -174,31 +241,55 @@ export function createHybridStorage(
       }
 
       // 1. Extract sensitive data
-      const secureData: Record<string, unknown> = {};
-      sensitivePaths.forEach((path) => {
+      const stdSecrets: Record<string, unknown> = {};
+      const highSecrets: Record<string, unknown> = {};
+
+      stdPaths.forEach((path) => {
         const val = getNestedValue(actualState, path);
         if (val !== undefined) {
-          secureData[path] = val;
-          // Clear it from the public state
+          stdSecrets[path] = val;
           clearNestedValue(actualState, path);
         }
       });
 
-      // 2. Save public data to AsyncStorage
+      highSecPaths.forEach((path) => {
+        const val = getNestedValue(actualState, path);
+        if (val !== undefined) {
+          highSecrets[path] = val;
+          clearNestedValue(actualState, path);
+        }
+      });
+
+      // 2. Save public data
       await AsyncStorage.setItem(name, JSON.stringify(state));
 
-      // 3. Save sensitive data to SecureStore
-      if (Object.keys(secureData).length > 0) {
-        await SecureStore.setItemAsync(secureKey, JSON.stringify(secureData), {
+      // 3. Save secure data
+      if (Object.keys(stdSecrets).length > 0) {
+        await SecureStore.setItemAsync(secureKey, JSON.stringify(stdSecrets), {
           keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
         });
+      }
+
+      if (Object.keys(highSecrets).length > 0 && highSecKey) {
+        await SecureStore.setItemAsync(
+          highSecKey,
+          JSON.stringify(highSecrets),
+          {
+            keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+            requireAuthentication: true,
+          },
+        );
       }
     },
 
     removeItem: async (name: string): Promise<void> => {
       await AsyncStorage.removeItem(name);
+      await AsyncStorage.removeItem(migrationKey);
       if (!isWeb) {
         await SecureStore.deleteItemAsync(secureKey);
+        if (highSecKey) {
+          await SecureStore.deleteItemAsync(highSecKey);
+        }
       }
     },
   };

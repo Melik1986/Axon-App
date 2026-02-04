@@ -19,6 +19,7 @@ import { useSettingsStore, RagProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useBiometricAuth } from "@/hooks/useBiometricAuth";
+import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest, getApiUrl } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
@@ -30,6 +31,7 @@ export default function RAGSettingsScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
+  useProtectScreen();
 
   const { rag, setRagSettings } = useSettingsStore();
 

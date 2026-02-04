@@ -20,6 +20,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { Image } from "expo-image";
+import ImageViewing from "react-native-image-viewing";
 
 import { ThemedText } from "@/components/ThemedText";
 import { ChatBubble } from "@/components/ChatBubble";
@@ -48,6 +49,8 @@ export default function ChatScreen() {
 
   const [inputText, setInputText] = React.useState("");
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
+  const [isPreviewVisible, setIsPreviewVisible] = React.useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = React.useState(0);
   const { isRecording, startRecording, stopRecording, transcription } =
     useVoice();
 
@@ -239,7 +242,7 @@ export default function ChatScreen() {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.8,
         base64: true,
       });
@@ -263,7 +266,7 @@ export default function ChatScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
+        allowsEditing: false,
         quality: 0.8,
         base64: true,
       });
@@ -317,6 +320,11 @@ export default function ChatScreen() {
 
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleImagePress = (index: number) => {
+    setCurrentImageIndex(index);
+    setIsPreviewVisible(true);
   };
 
   const handleAttach = () => {
@@ -461,6 +469,10 @@ export default function ChatScreen() {
         ]
       : messages;
 
+  const images = attachments
+    .filter((att) => att.type === "image")
+    .map((att) => ({ uri: att.uri }));
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : "padding"}
@@ -511,11 +523,16 @@ export default function ChatScreen() {
             {attachments.map((att, index) => (
               <View key={index} style={styles.attachmentPreview}>
                 {att.type === "image" ? (
-                  <Image
-                    source={{ uri: att.uri }}
-                    style={styles.attachmentImage}
-                    contentFit="cover"
-                  />
+                  <Pressable
+                    style={styles.attachmentImageContainer}
+                    onPress={() => handleImagePress(index)}
+                  >
+                    <Image
+                      source={{ uri: att.uri }}
+                      style={styles.attachmentImage}
+                      contentFit="cover"
+                    />
+                  </Pressable>
                 ) : (
                   <View
                     style={[
@@ -571,7 +588,7 @@ export default function ChatScreen() {
               multiline
               maxLength={2000}
             />
-            {inputText.trim() ? (
+            {inputText.trim() || attachments.length > 0 ? (
               <Pressable
                 style={styles.sendButton}
                 onPress={sendMessage}
@@ -592,6 +609,15 @@ export default function ChatScreen() {
           </View>
         </View>
       </View>
+
+      <ImageViewing
+        images={images}
+        imageIndex={currentImageIndex}
+        visible={isPreviewVisible}
+        onRequestClose={() => setIsPreviewVisible(false)}
+        swipeToCloseEnabled={true}
+        doubleTapToZoomEnabled={true}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -693,6 +719,10 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     overflow: "hidden",
     position: "relative",
+  },
+  attachmentImageContainer: {
+    width: "100%",
+    height: "100%",
   },
   attachmentImage: {
     width: "100%",

@@ -19,6 +19,7 @@ import type { ERPProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useBiometricAuth } from "@/hooks/useBiometricAuth";
+import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { TranslationKey } from "@/i18n/translations";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
@@ -31,6 +32,7 @@ export default function ERPSettingsScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
   const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
+  useProtectScreen();
 
   const { erp, setERPSettings } = useSettingsStore();
 

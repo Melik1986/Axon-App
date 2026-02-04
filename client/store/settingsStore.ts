@@ -3,7 +3,8 @@ import { persist, createJSONStorage } from "zustand/middleware";
 import { ThemeMode } from "@/constants/theme";
 import {
   createHybridStorage,
-  SETTINGS_SENSITIVE_PATHS,
+  SETTINGS_STD_PATHS,
+  SETTINGS_HIGH_SEC_PATHS,
 } from "@/lib/secure-settings-storage";
 
 interface LLMSettings {
@@ -133,8 +134,10 @@ export const useSettingsStore = create<SettingsState>()(
       storage: createJSONStorage(() =>
         createHybridStorage(
           "jsrvis-settings",
-          SETTINGS_SENSITIVE_PATHS,
+          SETTINGS_STD_PATHS,
           "axon-settings-secrets",
+          SETTINGS_HIGH_SEC_PATHS,
+          "axon-settings-high-sec",
         ),
       ),
     },
