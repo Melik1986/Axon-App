@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import OpenAI from "openai";
 import { LlmProvider, LlmSettings, ProviderConfig } from "./llm.types";
@@ -7,7 +7,7 @@ import { LlmProvider, LlmSettings, ProviderConfig } from "./llm.types";
 export class LlmService {
   private providerConfigs: Record<LlmProvider, ProviderConfig>;
 
-  constructor(@Inject(ConfigService) private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.providerConfigs = {
       replit: {
         baseUrl:
