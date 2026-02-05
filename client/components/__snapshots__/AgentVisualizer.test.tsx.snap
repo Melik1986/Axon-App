@@ -1,0 +1,248 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`AgentVisualizer renders correctly in idle state 1`] = `
+<View
+  style={
+    [
+      {
+        "alignItems": "center",
+        "justifyContent": "center",
+      },
+      {
+        "alignItems": "center",
+        "height": 60,
+        "justifyContent": "center",
+        "width": 60,
+      },
+    ]
+  }
+>
+  <View
+    height={60}
+    viewBox="0 0 60 60"
+    width={60}
+  >
+    <View>
+      <View
+        id="cyberGrad"
+        x1="0"
+        x2="1"
+        y1="0"
+        y2="1"
+      >
+        <View
+          offset="0"
+          stopColor="#00FFFF"
+          stopOpacity="1"
+        />
+        <View
+          offset="1"
+          stopColor="#FF00FF"
+          stopOpacity="1"
+        />
+      </View>
+    </View>
+    <View
+      animatedProps={
+        {
+          "r": 0,
+          "strokeOpacity": 0,
+          "transform": [
+            {
+              "rotate": "0deg",
+            },
+            {
+              "translateX": 0,
+            },
+          ],
+        }
+      }
+      cx={30}
+      cy={30}
+      fill="none"
+      stroke="url(#cyberGrad)"
+      strokeWidth="2"
+    />
+    <View
+      animatedProps={
+        {
+          "fillOpacity": 0.4,
+          "r": 10,
+        }
+      }
+      cx={30}
+      cy={30}
+      fill="#00FFFF"
+    />
+  </View>
+</View>
+`;
+
+exports[`AgentVisualizer renders correctly in listening state 1`] = `
+<View
+  style={
+    [
+      {
+        "alignItems": "center",
+        "justifyContent": "center",
+      },
+      {
+        "alignItems": "center",
+        "height": 60,
+        "justifyContent": "center",
+        "width": 60,
+      },
+    ]
+  }
+>
+  <View
+    height={60}
+    viewBox="0 0 60 60"
+    width={60}
+  >
+    <View>
+      <View
+        id="cyberGrad"
+        x1="0"
+        x2="1"
+        y1="0"
+        y2="1"
+      >
+        <View
+          offset="0"
+          stopColor="#00FFFF"
+          stopOpacity="1"
+        />
+        <View
+          offset="1"
+          stopColor="#FF00FF"
+          stopOpacity="1"
+        />
+      </View>
+    </View>
+    <View
+      animatedProps={
+        {
+          "fillOpacity": 0.8,
+          "r": 10,
+        }
+      }
+      cx={30}
+      cy={30}
+      fill="#00FFFF"
+    />
+    <View
+      fill="#FF00FF"
+      fillOpacity={0}
+      height={0}
+      rx={2}
+      width={4}
+      x={4}
+      y={30}
+    />
+    <View
+      fill="#FF00FF"
+      fillOpacity={0}
+      height={0}
+      rx={2}
+      width={4}
+      x={16}
+      y={30}
+    />
+    <View
+      fill="#FF00FF"
+      fillOpacity={0}
+      height={0}
+      rx={2}
+      width={4}
+      x={28}
+      y={30}
+    />
+    <View
+      fill="#FF00FF"
+      fillOpacity={0}
+      height={0}
+      rx={2}
+      width={4}
+      x={40}
+      y={30}
+    />
+    <View
+      fill="#FF00FF"
+      fillOpacity={0}
+      height={0}
+      rx={2}
+      width={4}
+      x={52}
+      y={30}
+    />
+  </View>
+</View>
+`;
+
+exports[`AgentVisualizer renders correctly in speaking state 1`] = `
+<View
+  style={
+    [
+      {
+        "alignItems": "center",
+        "justifyContent": "center",
+      },
+      {
+        "alignItems": "center",
+        "height": 60,
+        "justifyContent": "center",
+        "width": 60,
+      },
+    ]
+  }
+>
+  <View
+    height={60}
+    viewBox="0 0 60 60"
+    width={60}
+  >
+    <View>
+      <View
+        id="cyberGrad"
+        x1="0"
+        x2="1"
+        y1="0"
+        y2="1"
+      >
+        <View
+          offset="0"
+          stopColor="#00FFFF"
+          stopOpacity="1"
+        />
+        <View
+          offset="1"
+          stopColor="#FF00FF"
+          stopOpacity="1"
+        />
+      </View>
+    </View>
+    <View
+      animatedProps={
+        {
+          "fillOpacity": 0.4,
+          "r": 10,
+        }
+      }
+      cx={30}
+      cy={30}
+      fill="#00FFFF"
+    />
+    <View
+      animatedProps={
+        {
+          "d": "M 0 30 L 0 30 L 5 30 L 10 30 L 15 30 L 20 30 L 25 30 L 30 30 L 35 30 L 40 30 L 45 30 L 50 30 L 55 30 L 60 30",
+        }
+      }
+      fill="none"
+      stroke="#FF00FF"
+      strokeWidth="3"
+    />
+  </View>
+</View>
+`;

@@ -26,6 +26,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { ChatBubble } from "@/components/ChatBubble";
 import { EmptyState } from "@/components/EmptyState";
 import { VoiceButton } from "@/components/VoiceButton";
+import { AgentVisualizer, AgentState } from "@/components/AgentVisualizer";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
 import type { ToolCall, Attachment } from "@shared/types";
 import { useSettingsStore } from "@/store/settingsStore";
@@ -382,79 +383,93 @@ export default function ChatScreen() {
     }
   };
 
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <EmptyState
-        image={require("../../assets/images/icon.png")}
-        imageStyle={{ borderRadius: 80 }}
-        title={t("startConversation")}
-        subtitle={t("askJarvis")}
-      >
-        <View style={styles.suggestions}>
-          <Pressable
-            style={({ pressed }) => [
-              styles.suggestionChip,
-              {
-                backgroundColor: theme.backgroundSecondary,
-                borderColor: theme.border,
-              },
-              pressed && {
-                backgroundColor: theme.primary + "20",
-                borderColor: theme.primary,
-              },
-            ]}
-            onPress={() => handleSuggestionPress(t("checkInventory"))}
-          >
-            <ThemedText
-              style={[styles.suggestionText, { color: theme.textSecondary }]}
+  const renderEmptyState = () => {
+    const agentState: AgentState = isRecording
+      ? "listening"
+      : isStreaming
+        ? "speaking"
+        : "idle";
+
+    return (
+      <View style={styles.emptyContainer}>
+        <EmptyState
+          icon={
+            <AgentVisualizer
+              state={agentState}
+              size={160}
+              color={theme.primary}
+              volume={isRecording ? 0.6 : 0}
+            />
+          }
+          title={t("startConversation")}
+          subtitle={t("askJarvis")}
+        >
+          <View style={styles.suggestions}>
+            <Pressable
+              style={({ pressed }) => [
+                styles.suggestionChip,
+                {
+                  backgroundColor: theme.backgroundSecondary,
+                  borderColor: theme.border,
+                },
+                pressed && {
+                  backgroundColor: theme.primary + "20",
+                  borderColor: theme.primary,
+                },
+              ]}
+              onPress={() => handleSuggestionPress(t("checkInventory"))}
             >
-              {t("checkInventory")}
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.suggestionChip,
-              {
-                backgroundColor: theme.backgroundSecondary,
-                borderColor: theme.border,
-              },
-              pressed && {
-                backgroundColor: theme.primary + "20",
-                borderColor: theme.primary,
-              },
-            ]}
-            onPress={() => handleSuggestionPress(t("createInvoice"))}
-          >
-            <ThemedText
-              style={[styles.suggestionText, { color: theme.textSecondary }]}
+              <ThemedText
+                style={[styles.suggestionText, { color: theme.textSecondary }]}
+              >
+                {t("checkInventory")}
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.suggestionChip,
+                {
+                  backgroundColor: theme.backgroundSecondary,
+                  borderColor: theme.border,
+                },
+                pressed && {
+                  backgroundColor: theme.primary + "20",
+                  borderColor: theme.primary,
+                },
+              ]}
+              onPress={() => handleSuggestionPress(t("createInvoice"))}
             >
-              {t("createInvoice")}
-            </ThemedText>
-          </Pressable>
-          <Pressable
-            style={({ pressed }) => [
-              styles.suggestionChip,
-              {
-                backgroundColor: theme.backgroundSecondary,
-                borderColor: theme.border,
-              },
-              pressed && {
-                backgroundColor: theme.primary + "20",
-                borderColor: theme.primary,
-              },
-            ]}
-            onPress={() => handleSuggestionPress(t("showSalesReport"))}
-          >
-            <ThemedText
-              style={[styles.suggestionText, { color: theme.textSecondary }]}
+              <ThemedText
+                style={[styles.suggestionText, { color: theme.textSecondary }]}
+              >
+                {t("createInvoice")}
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.suggestionChip,
+                {
+                  backgroundColor: theme.backgroundSecondary,
+                  borderColor: theme.border,
+                },
+                pressed && {
+                  backgroundColor: theme.primary + "20",
+                  borderColor: theme.primary,
+                },
+              ]}
+              onPress={() => handleSuggestionPress(t("showSalesReport"))}
             >
-              {t("showSalesReport")}
-            </ThemedText>
-          </Pressable>
-        </View>
-      </EmptyState>
-    </View>
-  );
+              <ThemedText
+                style={[styles.suggestionText, { color: theme.textSecondary }]}
+              >
+                {t("showSalesReport")}
+              </ThemedText>
+            </Pressable>
+          </View>
+        </EmptyState>
+      </View>
+    );
+  };
 
   const allMessages =
     isStreaming && streamingContent
