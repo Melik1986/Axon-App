@@ -672,11 +672,11 @@ export class RagService {
     const contextParts = results.map((r, i) => {
       const title = r.metadata?.title
         ? `[${r.metadata.title}]`
-        : `[Документ ${i + 1}]`;
+        : `[Document ${i + 1}]`;
       return `${title}\n${r.content}`;
     });
 
-    return `Релевантная информация из базы знаний:\n\n${contextParts.join("\n\n---\n\n")}`;
+    return `Relevant information from knowledge base:\n\n${contextParts.join("\n\n---\n\n")}`;
   }
 
   // Stateless: seedDemoData requires ragSettings to upload to provider

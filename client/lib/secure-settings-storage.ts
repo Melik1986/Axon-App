@@ -160,7 +160,7 @@ export function createHybridStorage(
             JSON.stringify(highSecrets),
             {
               keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-              requireAuthentication: true, // Tiered Security
+              // requireAuthentication: true, // Tiered Security - Removed to avoid double prompt
             },
           );
         }
@@ -201,9 +201,8 @@ export function createHybridStorage(
         try {
           // specific options for retrieval might be needed depending on platform,
           // but getItemAsync usually prompts if requireAuthentication was used on set
-          const highDataStr = await SecureStore.getItemAsync(highSecKey, {
-            requireAuthentication: true,
-          });
+          const highDataStr = await SecureStore.getItemAsync(highSecKey);
+          // Removed requireAuthentication: true to avoid double prompt
           if (highDataStr) {
             const highData = JSON.parse(highDataStr);
             Object.entries(highData).forEach(([path, value]) => {
@@ -276,7 +275,7 @@ export function createHybridStorage(
           JSON.stringify(highSecrets),
           {
             keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-            requireAuthentication: true,
+            // requireAuthentication: true,
           },
         );
       }

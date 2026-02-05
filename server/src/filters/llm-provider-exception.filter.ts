@@ -11,7 +11,7 @@ import { AppLogger } from "../utils/logger";
 
 export const LLM_PROVIDER_ERROR_CODE = "LLM_PROVIDER_ERROR";
 export const LLM_PROVIDER_USER_MESSAGE =
-  "Провайдер недоступен, проверьте настройки ключа";
+  "LLM Provider unavailable, check API key settings";
 
 /**
  * Detects if the error is related to LLM provider (OpenAI, Groq, etc.)
