@@ -38,11 +38,32 @@ jest.mock("react-native", () => {
 
 // Mock Reanimated
 jest.mock("react-native-reanimated", () => {
-  const Reanimated = {
+  const React = jest.requireActual("react");
+  const { View, Text, Image, ScrollView } = jest.requireActual("react-native");
+
+  const createAnimatedComponent = (Component) => {
+    const AnimatedComponent = React.forwardRef((props, ref) =>
+      React.createElement(Component, { ...props, ref }),
+    );
+    AnimatedComponent.displayName = `Animated(${Component.displayName || Component.name || "Component"})`;
+    return AnimatedComponent;
+  };
+
+  return {
+    __esModule: true,
     default: {
       call: () => {},
-      createAnimatedComponent: (c) => c,
+      createAnimatedComponent,
+      View: createAnimatedComponent(View),
+      Text: createAnimatedComponent(Text),
+      Image: createAnimatedComponent(Image),
+      ScrollView: createAnimatedComponent(ScrollView),
     },
+    View: createAnimatedComponent(View),
+    Text: createAnimatedComponent(Text),
+    Image: createAnimatedComponent(Image),
+    ScrollView: createAnimatedComponent(ScrollView),
+    createAnimatedComponent,
     useSharedValue: jest.fn((v) => ({ value: v })),
     useAnimatedProps: jest.fn((cb) => cb()),
     useDerivedValue: jest.fn((cb) => ({ value: cb() })),
@@ -54,14 +75,8 @@ jest.mock("react-native-reanimated", () => {
     interpolate: jest.fn(() => 0),
     Easing: {
       linear: jest.fn(),
-    },
-  };
-  return {
-    __esModule: true,
-    ...Reanimated,
-    default: {
-      ...Reanimated.default,
-      createAnimatedComponent: (c) => c,
+      inOut: jest.fn(() => jest.fn()),
+      quad: {},
     },
   };
 });
@@ -123,4 +138,23 @@ jest.mock("react-native-svg", () => {
       },
     },
   );
+});
+
+// Mock lottie-react-native
+jest.mock("lottie-react-native", () => {
+  const React = jest.requireActual("react");
+  const { View } = jest.requireActual("react-native");
+  // Use a simple mock component
+  const LottieView = React.forwardRef(function LottieView(props, ref) {
+    return React.createElement(View, {
+      ...props,
+      testID: props.testID || "lottie-view",
+      ref,
+    });
+  });
+  LottieView.displayName = "LottieView";
+  return {
+    __esModule: true,
+    default: LottieView,
+  };
 });

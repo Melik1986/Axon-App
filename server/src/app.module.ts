@@ -9,6 +9,7 @@ import { RagModule } from "./modules/rag/rag.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { RulebookModule } from "./modules/rules/rulebook.module";
 import { SkillsModule } from "./modules/skills/skill.module";
+import { McpModule } from "./modules/mcp/mcp.module";
 import { ServicesModule } from "./services/services.module";
 import { JweDecryptionInterceptor } from "./interceptors/jwe-decryption.interceptor";
 
@@ -27,6 +28,7 @@ import { JweDecryptionInterceptor } from "./interceptors/jwe-decryption.intercep
     AuthModule,
     RulebookModule,
     SkillsModule,
+    McpModule,
   ],
   providers: [
     {

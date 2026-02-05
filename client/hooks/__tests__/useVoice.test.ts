@@ -76,6 +76,7 @@ describe("useVoice", () => {
   });
 
   it("sets error when conversation is missing", async () => {
+    // No conversation set (currentConversationId: null from beforeEach)
     (FileSystem.readAsStringAsync as jest.Mock).mockResolvedValueOnce("MOCK");
     (global.fetch as jest.Mock).mockImplementation(async () => ({
       body: {
@@ -91,7 +92,9 @@ describe("useVoice", () => {
       await result.current.stopRecording();
     });
 
+    // Hook should detect no conversation and set error without calling API
     expect(result.current.error).toBe("Failed to process voice message");
-    expect((global.fetch as jest.Mock).mock.calls.length).toBe(1);
+    // fetch should NOT be called because conversation check fails first
+    expect((global.fetch as jest.Mock).mock.calls.length).toBe(0);
   });
 });

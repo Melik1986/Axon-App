@@ -1,23 +1,17 @@
-import { Test, TestingModule } from "@nestjs/testing";
-import { ConfigService } from "@nestjs/config";
 import { LlmService } from "./llm.service";
 
 describe("LlmService (Orchestrator)", () => {
   let service: LlmService;
-  let configGet: jest.Mock;
 
-  beforeEach(async () => {
-    configGet = jest.fn().mockReturnValue(undefined);
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        LlmService,
-        {
-          provide: ConfigService,
-          useValue: { get: configGet },
-        },
-      ],
-    }).compile();
-    service = module.get<LlmService>(LlmService);
+  const mockConfigService = {
+    get: jest.fn().mockReturnValue(undefined),
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Direct instantiation bypasses NestJS DI (which doesn't work with Babel transform)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    service = new LlmService(mockConfigService as any);
   });
 
   describe("getProviderConfig / getModel", () => {

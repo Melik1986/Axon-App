@@ -83,7 +83,7 @@ export function useVoice() {
   }, [audioRecorder]);
 
   /**
-   * Play audio from base64 PCM data
+   * Play audio from base64 PCM/WAV data
    */
   const playAudio = useCallback(async (base64Audio: string): Promise<void> => {
     try {
@@ -100,12 +100,29 @@ export function useVoice() {
         source.onended = () => setIsPlaying(false);
         source.start();
       } else {
-        // For SDK 55 native, we can use the new audio player
-        // Note: This might require temporary file creation for base64
-        AppLogger.info("Native audio playback triggered");
-        // Simplified: using player with base64 data URI if supported or via file
-        // For hackathon: assuming base64 works or logging info
-        setIsPlaying(false);
+        // For native (iOS/Android), write base64 to temp file and play
+        const tempPath = `${FileSystem.cacheDirectory}axon-tts-response.wav`;
+
+        // Write base64 audio to temp file
+        await FileSystem.writeAsStringAsync(tempPath, base64Audio, {
+          encoding: "base64",
+        });
+
+        // Create a new Audio instance for playback
+        const { createAudioPlayer } = await import("expo-audio");
+        const audioPlayer = createAudioPlayer({ uri: tempPath });
+
+        audioPlayer.addListener("playbackStatusUpdate", (status) => {
+          if (status.didJustFinish) {
+            setIsPlaying(false);
+            // Cleanup temp file
+            FileSystem.deleteAsync(tempPath, { idempotent: true }).catch(() => {
+              // Ignore cleanup errors
+            });
+          }
+        });
+
+        await audioPlayer.play();
       }
     } catch (err) {
       AppLogger.error("Error playing audio:", err);

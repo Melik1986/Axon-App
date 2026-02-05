@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from "react";
-import { StyleSheet, View, ScrollView, TextInput } from "react-native";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  StyleSheet,
+  View,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 
@@ -8,12 +14,16 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
+import { getApiUrl } from "@/lib/query-client";
+import { useAuthStore } from "@/store/authStore";
+import { AppLogger } from "@/lib/logger";
 
 interface McpServer {
   name: string;
   command: string;
   args: string[];
   status?: "connected" | "disconnected" | "error";
+  toolCount?: number;
 }
 
 export default function MCPServersScreen() {
@@ -21,9 +31,12 @@ export default function MCPServersScreen() {
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { session } = useAuthStore();
 
   const [servers, setServers] = useState<McpServer[]>([]);
   const [isAdding, setIsAdding] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnecting, setIsConnecting] = useState(false);
 
   const [name, setName] = useState("");
   const [command, setCommand] = useState("npx");
@@ -31,32 +44,72 @@ export default function MCPServersScreen() {
     "-y @modelcontextprotocol/server-everything",
   );
 
-  const fetchServers = async () => {
-    // Mock for now
-    setServers([
-      {
-        name: "1C-ERP",
-        command: "npx",
-        args: ["-y", "@axon/mcp-1c"],
-        status: "connected",
-      },
-    ]);
-  };
+  const fetchServers = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const baseUrl = getApiUrl();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (session?.accessToken) {
+        headers["Authorization"] = `Bearer ${session.accessToken}`;
+      }
+
+      const response = await fetch(`${baseUrl}api/mcp/servers`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        setServers(data);
+      }
+    } catch (error) {
+      AppLogger.error("Failed to fetch MCP servers", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [session?.accessToken]);
 
   useEffect(() => {
     fetchServers();
-  }, []);
+  }, [fetchServers]);
 
-  const handleAddServer = () => {
-    const newServer: McpServer = {
-      name,
-      command,
-      args: args.split(" "),
-      status: "disconnected",
-    };
-    setServers([...servers, newServer]);
-    setIsAdding(false);
-    setName("");
+  const handleAddServer = async () => {
+    try {
+      setIsConnecting(true);
+      const baseUrl = getApiUrl();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (session?.accessToken) {
+        headers["Authorization"] = `Bearer ${session.accessToken}`;
+      }
+
+      const response = await fetch(`${baseUrl}api/mcp/servers`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          name,
+          command,
+          args: args.split(" "),
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const newServer: McpServer = {
+          name,
+          command,
+          args: args.split(" "),
+          status: result.connected ? "connected" : "error",
+          toolCount: result.toolCount,
+        };
+        setServers([...servers, newServer]);
+        setIsAdding(false);
+        setName("");
+      }
+    } catch (error) {
+      AppLogger.error("Failed to connect MCP server", error);
+    } finally {
+      setIsConnecting(false);
+    }
   };
 
   return (
@@ -128,44 +181,75 @@ export default function MCPServersScreen() {
             />
 
             <View style={styles.formRow}>
-              <Button onPress={() => setIsAdding(false)} variant="outline">
+              <Button
+                onPress={() => setIsAdding(false)}
+                variant="outline"
+                disabled={isConnecting}
+              >
                 {t("cancel")}
               </Button>
-              <Button onPress={handleAddServer}>{t("connect")}</Button>
+              <Button
+                onPress={handleAddServer}
+                disabled={isConnecting || !name}
+              >
+                {isConnecting ? t("connecting") : t("connect")}
+              </Button>
             </View>
           </View>
         )}
 
         <View style={styles.list}>
-          {servers.map((server, index) => (
-            <View
-              key={index}
-              style={[
-                styles.card,
-                { backgroundColor: theme.backgroundSecondary },
-              ]}
+          {isLoading ? (
+            <ActivityIndicator size="large" color={theme.primary} />
+          ) : servers.length === 0 ? (
+            <ThemedText
+              style={[styles.emptyText, { color: theme.textSecondary }]}
             >
-              <View style={styles.cardHeader}>
-                <View style={{ flex: 1 }}>
-                  <ThemedText style={styles.cardName}>{server.name}</ThemedText>
-                  <ThemedText
-                    style={[styles.cardDesc, { color: theme.textSecondary }]}
-                  >
-                    {server.command} {server.args.join(" ")}
-                  </ThemedText>
+              {t("noMcpServers")}
+            </ThemedText>
+          ) : (
+            servers.map((server, index) => (
+              <View
+                key={index}
+                style={[
+                  styles.card,
+                  { backgroundColor: theme.backgroundSecondary },
+                ]}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={{ flex: 1 }}>
+                    <ThemedText style={styles.cardName}>
+                      {server.name}
+                    </ThemedText>
+                    <ThemedText
+                      style={[styles.cardDesc, { color: theme.textSecondary }]}
+                    >
+                      {server.command} {server.args.join(" ")}
+                    </ThemedText>
+                    {server.toolCount !== undefined && (
+                      <ThemedText
+                        style={[
+                          styles.toolCount,
+                          { color: theme.textTertiary },
+                        ]}
+                      >
+                        {server.toolCount} {t("tools")}
+                      </ThemedText>
+                    )}
+                  </View>
+                  <View
+                    style={[
+                      styles.statusDot,
+                      {
+                        backgroundColor:
+                          server.status === "connected" ? "#22c55e" : "#94a3b8",
+                      },
+                    ]}
+                  />
                 </View>
-                <View
-                  style={[
-                    styles.statusDot,
-                    {
-                      backgroundColor:
-                        server.status === "connected" ? "#22c55e" : "#94a3b8",
-                    },
-                  ]}
-                />
               </View>
-            </View>
-          ))}
+            ))
+          )}
         </View>
       </ScrollView>
     </View>
@@ -244,5 +328,14 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     marginLeft: Spacing.md,
+  },
+  emptyText: {
+    textAlign: "center",
+    fontSize: 14,
+    marginTop: Spacing.xl,
+  },
+  toolCount: {
+    fontSize: 11,
+    marginTop: 4,
   },
 });

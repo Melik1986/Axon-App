@@ -113,6 +113,45 @@ export class McpHostService implements OnModuleDestroy {
   }
 
   /**
+   * Get list of connected server names.
+   */
+  getConnectedServers(): string[] {
+    return Array.from(this.clients.keys());
+  }
+
+  /**
+   * Check if a server is connected.
+   */
+  isConnected(serverName: string): boolean {
+    return this.clients.has(serverName);
+  }
+
+  /**
+   * Disconnect from a specific MCP server.
+   */
+  async disconnect(serverName: string): Promise<void> {
+    const client = this.clients.get(serverName);
+    if (client) {
+      try {
+        await client.close();
+        this.clients.delete(serverName);
+        AppLogger.info(
+          `Disconnected from MCP server: ${serverName}`,
+          undefined,
+          "MCP",
+        );
+      } catch (error) {
+        AppLogger.error(
+          `Error disconnecting from MCP server: ${serverName}`,
+          error,
+          "MCP",
+        );
+        throw error;
+      }
+    }
+  }
+
+  /**
    * List all tools from all connected MCP servers.
    */
   async getAllTools(): Promise<McpToolDefinition[]> {
