@@ -1,5 +1,5 @@
 /**
- * Интерфейс для ошибок Supabase
+ * Interface for Supabase errors
  */
 import { sanitizeForLogging } from "./logger-sanitizer";
 
@@ -11,7 +11,7 @@ interface SupabaseError {
 }
 
 /**
- * Уровни логирования
+ * Logging levels
  */
 export enum LogLevel {
   DEBUG = 0,
@@ -22,7 +22,7 @@ export enum LogLevel {
 }
 
 /**
- * Опции логирования
+ * Logging options
  */
 interface LogOptions {
   timestamp?: boolean;
@@ -31,31 +31,31 @@ interface LogOptions {
 }
 
 /**
- * Универсальная утилита для логирования в приложении (Server)
- * Расширенная версия с уровнями логирования и timestamps
+ * Universal utility for application logging (Server)
+ * Extended version with logging levels and timestamps
  */
 export class AppLogger {
-  // В Node.js используем process.env.NODE_ENV
+  // In Node.js use process.env.NODE_ENV
   private static isDevelopment = process.env.NODE_ENV !== "production";
   private static currentLevel: LogLevel =
     process.env.NODE_ENV !== "production" ? LogLevel.DEBUG : LogLevel.WARN;
 
   /**
-   * Установить уровень логирования
+   * Set logging level
    */
   static setLevel(level: LogLevel): void {
     this.currentLevel = level;
   }
 
   /**
-   * Получить текущий уровень логирования
+   * Get current logging level
    */
   static getLevel(): LogLevel {
     return this.currentLevel;
   }
 
   /**
-   * Форматирование сообщения с timestamp
+   * Message formatting with timestamp
    */
   private static formatMessage(
     level: string,
@@ -72,7 +72,7 @@ export class AppLogger {
   }
 
   /**
-   * Проверка, нужно ли логировать для текущего уровня
+   * Check if logging is needed for current level
    */
   private static shouldLog(level: LogLevel): boolean {
     return level >= this.currentLevel;
@@ -179,7 +179,7 @@ export class AppLogger {
   }
 
   /**
-   * Группирование логов (для debugging)
+   * Group logs (for debugging)
    */
   static group(label: string): void {
     if (this.isDevelopment) {
@@ -196,7 +196,7 @@ export class AppLogger {
   }
 
   /**
-   * Таймер для замера производительности
+   * Timer for performance measurement
    */
   static time(label: string): void {
     if (this.isDevelopment) {
@@ -213,7 +213,7 @@ export class AppLogger {
   }
 
   /**
-   * Вывод таблицы (для debugging)
+   * Table output (for debugging)
    */
   static table(data: unknown): void {
     if (this.isDevelopment) {

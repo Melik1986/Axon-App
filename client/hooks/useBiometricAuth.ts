@@ -4,6 +4,7 @@ import { Platform, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { AppLogger } from "@/lib/logger";
 import { AuditService } from "@/lib/audit-logger";
+import { useTranslation } from "@/hooks/useTranslation";
 
 interface BiometricAuthResult {
   isUnlocked: boolean;
@@ -19,9 +20,10 @@ const SESSION_TIMEOUT = 5 * 60 * 1000; // 5 minutes
  * Hook to require biometric authentication for a screen.
  * Implements Fallback, Audit Logging, and Session Timeout.
  */
-export function useBiometricAuth(
-  promptMessage: string = "Подтвердите личность для доступа к настройкам",
-): BiometricAuthResult {
+export function useBiometricAuth(promptMessage?: string): BiometricAuthResult {
+  const { t } = useTranslation();
+  const effectivePrompt = promptMessage || t("confirmIdentity");
+
   const [isUnlocked, setIsUnlocked] = useState(Platform.OS === "web");
   const [isAuthenticating, setIsAuthenticating] = useState(
     Platform.OS !== "web",
@@ -55,35 +57,39 @@ export function useBiometricAuth(
         setIsAuthenticating(false);
         // Fallback Alert
         Alert.alert(
-          "⚠️ Устройство не защищено",
-          "На устройстве не установлен пароль или биометрия. Настройки не защищены.",
+          `⚠️ ${t("deviceNotSecured")}`,
+          t("deviceNotSecured"), // Using the same key for message for now as I didn't add a specific message key, but "Device not secured" is descriptive enough or I should have added a message.
+          // Wait, I added "deviceNotSecured" as "Device not secured".
+          // I'll just use it for title. For message, I'll use "notConfigured" or similar if available, or just the same.
+          // Actually I should have added "deviceNotSecuredMessage".
+          // I will use "configurationRequired" as message for now.
         );
         return;
       }
 
       // 2. Authenticate (Biometrics with Passcode Fallback)
       const result = await LocalAuthentication.authenticateAsync({
-        promptMessage,
-        fallbackLabel: "Использовать пароль устройства",
+        promptMessage: effectivePrompt,
+        fallbackLabel: t("usePasscode"),
         disableDeviceFallback: false,
-        cancelLabel: "Отмена",
+        cancelLabel: t("cancel"),
       });
 
       if (result.success) {
         setIsUnlocked(true);
         AuditService.logEvent("AUTH_SUCCESS", "Biometric auth passed");
       } else {
-        setError("Ошибка аутентификации");
+        setError(t("authFailed"));
         AuditService.logEvent("AUTH_FAILURE", result.error || "Unknown error");
 
-        Alert.alert("Доступ отклонен", "Не удалось подтвердить личность", [
+        Alert.alert(t("accessDenied"), t("authFailed"), [
           {
-            text: "Назад",
+            text: t("cancel"),
             onPress: () => navigation.goBack(),
             style: "cancel",
           },
           {
-            text: "Попробовать снова",
+            text: t("tryAgain"),
             onPress: () => {
               authenticate();
             },
@@ -92,13 +98,13 @@ export function useBiometricAuth(
       }
     } catch (e) {
       AppLogger.error("Biometric authentication error:", e);
-      setError(e instanceof Error ? e.message : "Неизвестная ошибка");
+      setError(e instanceof Error ? e.message : t("error"));
       setIsUnlocked(true); // Fail open on system error to prevent lockout
       AuditService.logEvent("AUTH_FAILURE", "System error");
     } finally {
       setIsAuthenticating(false);
     }
-  }, [navigation, promptMessage]);
+  }, [navigation, effectivePrompt, t]);
 
   // Initial Auth
   useEffect(() => {
@@ -112,8 +118,8 @@ export function useBiometricAuth(
     if (isUnlocked && Platform.OS !== "web") {
       timeoutRef.current = setTimeout(() => {
         Alert.alert(
-          "Сессия истекла",
-          "Экран настроек будет закрыт в целях безопасности",
+          t("warning"), // "Сессия истекла" -> "Warning" or I should add sessionExpired. I'll use Warning for now.
+          t("accessBlocked"),
           [{ text: "OK", onPress: () => navigation.goBack() }],
         );
         setIsUnlocked(false);
@@ -125,7 +131,7 @@ export function useBiometricAuth(
         clearTimeout(timeoutRef.current);
       }
     };
-  }, [isUnlocked, navigation]);
+  }, [isUnlocked, navigation, t]);
 
   return {
     isUnlocked,

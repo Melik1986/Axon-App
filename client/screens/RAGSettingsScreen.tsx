@@ -142,9 +142,9 @@ export default function RAGSettingsScreen() {
             <ThemedText
               style={{ marginBottom: Spacing.lg, textAlign: "center" }}
             >
-              Доступ заблокирован. Требуется подтверждение личности.
+              {t("accessBlocked")}
             </ThemedText>
-            <Button onPress={authenticate}>Попробовать снова</Button>
+            <Button onPress={authenticate}>{t("tryAgain")}</Button>
           </View>
         ) : (
           <ActivityIndicator size="large" color={theme.primary} />

@@ -291,6 +291,14 @@ export const translations = {
     addAttachment: "Add Attachment",
     chooseSource: "Choose Source",
     document: "Document",
+    // Security & Errors
+    deviceNotSecured: "Device not secured",
+    accessDenied: "Access Denied",
+    confirmIdentity: "Confirm your identity to access settings",
+    tryAgain: "Try Again",
+    accessBlocked: "Access blocked. Identity confirmation required.",
+    usePasscode: "Use device passcode",
+    promptInjection: "Prompt injection detected",
   },
   ru: {
     appName: "AXON",
@@ -522,6 +530,14 @@ export const translations = {
     addAttachment: "Добавить вложение",
     chooseSource: "Выберите источник",
     document: "Документ",
+    // Security & Errors
+    deviceNotSecured: "Устройство не защищено",
+    accessDenied: "Доступ запрещен",
+    confirmIdentity: "Подтвердите личность для доступа к настройкам",
+    tryAgain: "Попробовать снова",
+    accessBlocked: "Доступ заблокирован. Требуется подтверждение личности.",
+    usePasscode: "Использовать пароль устройства",
+    promptInjection: "Обнаружена инъекция промпта",
   },
   de: {
     // ... existing ...
