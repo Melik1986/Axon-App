@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   ErpConfig,
@@ -11,15 +11,17 @@ import { AppLogger } from "../../utils/logger";
 import { CircuitBreakerService } from "../../services/circuit-breaker.service";
 
 @Injectable()
-export class ErpService {
-  private config: ErpConfig;
-  private isConfigured: boolean;
+export class ErpService implements OnModuleInit {
+  private config!: ErpConfig;
+  private isConfigured!: boolean;
 
   constructor(
     @Inject(ConfigService) private configService: ConfigService,
     @Inject(CircuitBreakerService)
     private circuitBreaker: CircuitBreakerService,
-  ) {
+  ) {}
+
+  onModuleInit() {
     this.config = {
       provider: "1c",
       baseUrl:

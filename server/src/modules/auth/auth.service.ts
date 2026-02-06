@@ -1,4 +1,4 @@
-import { Injectable, Inject } from "@nestjs/common";
+import { Injectable, Inject, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import * as jwt from "jsonwebtoken";
 import * as crypto from "crypto";
@@ -24,8 +24,8 @@ interface TempAuthCode {
 }
 
 @Injectable()
-export class AuthService {
-  private readonly jwtSecret: string;
+export class AuthService implements OnModuleInit {
+  private jwtSecret!: string;
   private readonly accessTokenExpiry = "24h";
   private readonly refreshTokenExpiry = "30d";
 
@@ -36,7 +36,9 @@ export class AuthService {
   private readonly tempAuthCodes: Map<string, TempAuthCode> = new Map();
   private readonly TEMP_CODE_TTL_MS = 60 * 1000; // 60 seconds
 
-  constructor(@Inject(ConfigService) private configService: ConfigService) {
+  constructor(@Inject(ConfigService) private configService: ConfigService) {}
+
+  onModuleInit() {
     const secret = this.configService.get("SESSION_SECRET");
     if (!secret && process.env.NODE_ENV === "production") {
       throw new Error(
@@ -46,7 +48,6 @@ export class AuthService {
     }
     this.jwtSecret = secret || "axon-dev-secret-not-for-production";
 
-    // Cleanup expired codes every 30 seconds
     setInterval(() => this.cleanupExpiredCodes(), 30 * 1000);
   }
 
