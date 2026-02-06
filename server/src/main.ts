@@ -149,6 +149,12 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup("api/docs", app, document);
 
+  // Serve static web assets (favicons, manifest, etc.)
+  const webPath = path.resolve(process.cwd(), "web");
+  if (fs.existsSync(webPath)) {
+    expressApp.use(express.static(webPath));
+  }
+
   // Serve static Expo files
   const staticBuildPath = path.resolve(process.cwd(), "static-build");
   if (fs.existsSync(staticBuildPath)) {
@@ -158,9 +164,8 @@ async function bootstrap() {
   // Landing page and Expo manifest routing
   const templatePath = path.resolve(
     process.cwd(),
-    "server",
-    "templates",
-    "landing-page.html",
+    "web",
+    "index.html",
   );
   const appName = getAppName();
 
