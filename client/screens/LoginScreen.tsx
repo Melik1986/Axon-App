@@ -31,27 +31,35 @@ export default function LoginScreen() {
 
   const handleAuthCallback = useCallback(
     async (url: string) => {
-      if (!url.includes("/auth/success")) return;
+      if (!url.includes("/auth/success") && !url.includes("code=")) return;
 
       try {
         const urlObj = new URL(url);
-        const accessToken = urlObj.searchParams.get("accessToken");
-        const refreshToken = urlObj.searchParams.get("refreshToken");
-        const expiresIn = urlObj.searchParams.get("expiresIn");
-        const userJson = urlObj.searchParams.get("user");
+        const code = urlObj.searchParams.get("code");
 
-        if (accessToken && refreshToken && expiresIn) {
-          const session = {
-            accessToken,
-            refreshToken,
-            expiresIn: parseInt(expiresIn, 10),
-            expiresAt: Date.now() + parseInt(expiresIn, 10) * 1000,
-          };
-          setSession(session);
+        if (code) {
+          const baseUrl = getApiUrl();
+          const exchangeResponse = await fetch(
+            `${baseUrl}api/auth/exchange`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ code }),
+            },
+          );
 
-          if (userJson) {
-            const user = JSON.parse(decodeURIComponent(userJson));
-            setUser(user);
+          const data = await exchangeResponse.json();
+
+          if (data.success && data.session && data.user) {
+            setSession({
+              accessToken: data.session.accessToken,
+              refreshToken: data.session.refreshToken,
+              expiresIn: data.session.expiresIn,
+              expiresAt: Date.now() + data.session.expiresIn * 1000,
+            });
+            setUser(data.user);
+          } else {
+            AppLogger.error("Code exchange failed:", data.error);
           }
         }
       } catch (error) {
