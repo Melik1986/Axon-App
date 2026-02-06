@@ -79,13 +79,5 @@ export function getApiUrl(): string {
       : `https://${host}`;
   const url = new URL(withProtocol);
 
-  if (
-    url.protocol === "https:" &&
-    url.hostname.includes(".replit.dev") &&
-    url.port
-  ) {
-    url.port = "";
-  }
-
   return url.href;
 }
