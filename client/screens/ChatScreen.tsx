@@ -20,7 +20,12 @@ import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system";
 import { Image } from "expo-image";
-import ImageViewing from "react-native-image-viewing";
+const ImageViewing = Platform.OS !== "web"
+  ? require("react-native-image-viewing").default
+  : ({ visible, onRequestClose }: { visible: boolean; onRequestClose: () => void; [key: string]: unknown }) => {
+      if (visible) onRequestClose();
+      return null;
+    };
 
 import { ThemedText } from "@/components/ThemedText";
 import { ChatBubble } from "@/components/ChatBubble";
