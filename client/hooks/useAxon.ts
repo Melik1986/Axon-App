@@ -54,40 +54,29 @@ export function useAxon() {
           },
         );
 
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error("No response body");
-
-        const decoder = new TextDecoder();
+        const responseText = await response.text();
+        const lines = responseText.split("\n");
         let fullResponse = "";
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            try {
-              const data = JSON.parse(line.slice(6));
-              if (data.content) {
-                fullResponse += data.content;
-                setStreamingContent(fullResponse);
-              }
-              if (data.done) {
-                // Add assistant message
-                const assistantMessage: ChatMessage = {
-                  id: Date.now() + 1,
-                  role: "assistant",
-                  content: fullResponse,
-                  createdAt: new Date().toISOString(),
-                };
-                addMessage(assistantMessage);
-              }
-            } catch {
-              // Ignore parse errors
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.content) {
+              fullResponse += data.content;
+              setStreamingContent(fullResponse);
             }
+            if (data.done) {
+              const assistantMessage: ChatMessage = {
+                id: Date.now() + 1,
+                role: "assistant",
+                content: fullResponse,
+                createdAt: new Date().toISOString(),
+              };
+              addMessage(assistantMessage);
+            }
+          } catch {
+            // Ignore parse errors
           }
         }
 

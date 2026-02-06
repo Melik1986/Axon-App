@@ -150,65 +150,55 @@ export default function ChatScreen() {
         },
       );
 
-      const reader = response.body?.getReader();
-      if (!reader) return;
-
-      const decoder = new TextDecoder();
+      const responseText = await response.text();
+      const allLines = responseText.split("\n");
       let fullContent = "";
       const toolCalls: ToolCall[] = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-            if (data.content) {
-              fullContent += data.content;
-              setStreamingContent(fullContent);
-            }
-            if (data.toolCall) {
-              toolCalls.push({ ...data.toolCall, status: "calling" });
-            }
-            if (data.toolResult) {
-              const idx = toolCalls.findIndex(
-                (t) =>
-                  t.toolName === data.toolResult.toolName &&
-                  t.status === "calling",
-              );
-              if (idx !== -1) {
-                toolCalls[idx] = {
-                  ...toolCalls[idx],
-                  ...data.toolResult,
-                  status: "done",
-                };
-              } else {
-                toolCalls.push({ ...data.toolResult, status: "done" });
-              }
-            }
-            if (data.done) {
-              const assistantMessage: ChatMessage = {
-                id: Date.now() + 1,
-                role: "assistant",
-                content: fullContent,
-                createdAt: new Date().toISOString(),
-                toolCalls: toolCalls,
+      for (const line of allLines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.content) {
+            fullContent += data.content;
+            setStreamingContent(fullContent);
+          }
+          if (data.toolCall) {
+            toolCalls.push({ ...data.toolCall, status: "calling" });
+          }
+          if (data.toolResult) {
+            const idx = toolCalls.findIndex(
+              (t) =>
+                t.toolName === data.toolResult.toolName &&
+                t.status === "calling",
+            );
+            if (idx !== -1) {
+              toolCalls[idx] = {
+                ...toolCalls[idx],
+                ...data.toolResult,
+                status: "done",
               };
-              addMessage(assistantMessage);
-              clearStreamingContent();
-              if (Platform.OS !== "web") {
-                Haptics.notificationAsync(
-                  Haptics.NotificationFeedbackType.Success,
-                );
-              }
+            } else {
+              toolCalls.push({ ...data.toolResult, status: "done" });
             }
-          } catch {}
-        }
+          }
+          if (data.done) {
+            const assistantMessage: ChatMessage = {
+              id: Date.now() + 1,
+              role: "assistant",
+              content: fullContent,
+              createdAt: new Date().toISOString(),
+              toolCalls: toolCalls,
+            };
+            addMessage(assistantMessage);
+            clearStreamingContent();
+            if (Platform.OS !== "web") {
+              Haptics.notificationAsync(
+                Haptics.NotificationFeedbackType.Success,
+              );
+            }
+          }
+        } catch {}
       }
     } catch (error) {
       AppLogger.error("Failed to send message:", error);

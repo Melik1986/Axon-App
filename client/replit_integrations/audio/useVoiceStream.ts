@@ -37,49 +37,37 @@ export function useVoiceStream(callbacks: StreamCallbacks = {}) {
       });
       if (!response.ok) throw new Error("Voice request failed");
 
-      const streamReader = response.body?.getReader();
-      if (!streamReader) throw new Error("No response body");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
+      const responseText = await response.text();
+      const lines = responseText.split("\n");
       let fullTranscript = "";
 
-      while (true) {
-        const { done, value } = await streamReader.read();
-        if (done) break;
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+        try {
+          const event = JSON.parse(line.slice(6));
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-
-          try {
-            const event = JSON.parse(line.slice(6));
-
-            switch (event.type) {
-              case "user_transcript":
-                callbacks.onUserTranscript?.(event.data);
-                break;
-              case "transcript":
-                fullTranscript += event.data;
-                callbacks.onTranscript?.(event.data, fullTranscript);
-                break;
-              case "audio":
-                playback.pushAudio(event.data);
-                break;
-              case "done":
-                playback.signalComplete();
-                callbacks.onComplete?.(fullTranscript);
-                break;
-              case "error":
-                throw new Error(event.error);
-            }
-          } catch (e) {
-            if (!(e instanceof SyntaxError)) {
-              callbacks.onError?.(e as Error);
-            }
+          switch (event.type) {
+            case "user_transcript":
+              callbacks.onUserTranscript?.(event.data);
+              break;
+            case "transcript":
+              fullTranscript += event.data;
+              callbacks.onTranscript?.(event.data, fullTranscript);
+              break;
+            case "audio":
+              playback.pushAudio(event.data);
+              break;
+            case "done":
+              playback.signalComplete();
+              callbacks.onComplete?.(fullTranscript);
+              break;
+            case "error":
+              throw new Error(event.error);
+          }
+        } catch (e) {
+          if (!(e instanceof SyntaxError)) {
+            callbacks.onError?.(e as Error);
           }
         }
       }

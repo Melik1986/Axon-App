@@ -204,48 +204,31 @@ export function useVoice() {
         throw new Error(errorText || "Voice request failed");
       }
 
-      // Process SSE response
-      const reader = serverResponse.body?.getReader();
-      if (!reader) throw new Error("No response body");
-
-      const decoder = new TextDecoder();
-      let buffer = "";
+      const responseText = await serverResponse.text();
+      const lines = responseText.split("\n");
       let userTranscript = "";
       let assistantTranscript = "";
       const audioChunks: string[] = [];
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      for (const line of lines) {
+        if (!line.startsWith("data: ")) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        let doneReceived = false;
-
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          try {
-            const data = JSON.parse(line.slice(6));
-
-            if (data.type === "user_transcript") {
-              userTranscript = data.data;
-            } else if (data.type === "transcript" || data.content) {
-              assistantTranscript += data.data ?? data.content ?? "";
-            } else if (data.type === "audio") {
-              audioChunks.push(data.data);
-            } else if (data.type === "error" || data.error) {
-              throw new Error(data.error || "Voice request failed");
-            } else if (data.type === "done" || data.done) {
-              doneReceived = true;
-            }
-          } catch (err) {
-            if (!(err instanceof SyntaxError)) {
-              throw err;
-            }
+          if (data.type === "user_transcript") {
+            userTranscript = data.data;
+          } else if (data.type === "transcript" || data.content) {
+            assistantTranscript += data.data ?? data.content ?? "";
+          } else if (data.type === "audio") {
+            audioChunks.push(data.data);
+          } else if (data.type === "error" || data.error) {
+            throw new Error(data.error || "Voice request failed");
+          }
+        } catch (err) {
+          if (!(err instanceof SyntaxError)) {
+            throw err;
           }
         }
-        if (doneReceived) break;
       }
 
       const result: VoiceResponse = {
