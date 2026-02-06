@@ -70,10 +70,19 @@ Preferred communication style: Simple, everyday language.
 
 ### Authentication
 
-- **Provider**: Supabase (`@supabase/supabase-js`)
-- **Flow**: Phone OTP authentication
-- **Client-side**: Auth state managed in `client/store/authStore.ts`
-- **Server-side**: JWT/session verification via NestJS guards
+- **Provider**: Replit Auth (OAuth2 via `expo-auth-session`)
+- **Flow**: OAuth2 Authorization Code with `makeRedirectUri({ scheme: "axon", path: "auth/callback" })`
+- **Deep link scheme**: `axon://` (configured in `app.json`)
+- **Client-side**: Auth state managed in `client/store/authStore.ts`, login in `client/screens/LoginScreen.tsx`
+- **Server-side**: OAuth callback in `server/src/modules/auth/auth.controller.ts` issues temp auth codes, exchanged via `/api/auth/exchange` endpoint
+- **Token exchange**: Client receives temp code via deep link redirect, exchanges it for JWT session token
+
+### SSE / Streaming Architecture
+
+- **Pattern**: Server buffers full SSE response, client reads with `response.text()` then parses SSE lines
+- **Reason**: React Native on iOS/Android does not support `ReadableStream.getReader()` — only works on web
+- **Affected files**: `useAxon.ts`, `useVoice.ts`, `useVoiceStream.ts`, `ChatScreen.tsx`
+- **Format**: Lines prefixed with `data: ` containing JSON objects with `type`/`content`/`done` fields
 
 ### Key Scripts
 
