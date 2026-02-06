@@ -6,10 +6,12 @@ import {
   Pressable,
   ActivityIndicator,
   Alert,
+  Platform,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
+import { makeRedirectUri } from "expo-auth-session";
 import { Feather } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useTheme } from "@/hooks/useTheme";
@@ -21,6 +23,11 @@ import { AppLogger } from "@/lib/logger";
 
 WebBrowser.maybeCompleteAuthSession();
 
+const redirectUri = makeRedirectUri({
+  scheme: "axon",
+  path: "auth/callback",
+});
+
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { theme, isDark } = useTheme();
@@ -29,83 +36,97 @@ export default function LoginScreen() {
   const { setUser, setSession, isLoading } = useAuthStore();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  const handleAuthCallback = useCallback(
-    async (url: string) => {
-      if (!url.includes("/auth/success") && !url.includes("code=")) return;
-
+  const exchangeCodeForSession = useCallback(
+    async (code: string) => {
       try {
-        const urlObj = new URL(url);
-        const code = urlObj.searchParams.get("code");
+        const baseUrl = getApiUrl();
+        const exchangeResponse = await fetch(
+          `${baseUrl}api/auth/exchange`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+          },
+        );
 
-        if (code) {
-          const baseUrl = getApiUrl();
-          const exchangeResponse = await fetch(
-            `${baseUrl}api/auth/exchange`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ code }),
-            },
-          );
+        const data = await exchangeResponse.json();
 
-          const data = await exchangeResponse.json();
-
-          if (data.success && data.session && data.user) {
-            setSession({
-              accessToken: data.session.accessToken,
-              refreshToken: data.session.refreshToken,
-              expiresIn: data.session.expiresIn,
-              expiresAt: Date.now() + data.session.expiresIn * 1000,
-            });
-            setUser(data.user);
-          } else {
-            AppLogger.error("Code exchange failed:", data.error);
-          }
+        if (data.success && data.session && data.user) {
+          setSession({
+            accessToken: data.session.accessToken,
+            refreshToken: data.session.refreshToken,
+            expiresIn: data.session.expiresIn,
+            expiresAt: Date.now() + data.session.expiresIn * 1000,
+          });
+          setUser(data.user);
+          return true;
         }
+        AppLogger.error("Code exchange failed:", data.error);
+        return false;
       } catch (error) {
-        AppLogger.error("Error handling auth callback:", error);
+        AppLogger.error("Error exchanging auth code:", error);
+        return false;
       }
-      setIsSigningIn(false);
     },
     [setSession, setUser],
   );
 
+  const extractCodeFromUrl = useCallback((url: string): string | null => {
+    try {
+      const codeMatch = url.match(/[?&]code=([^&]+)/);
+      return codeMatch ? decodeURIComponent(codeMatch[1]) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   useEffect(() => {
-    const handleDeepLink = (event: { url: string }) => {
-      handleAuthCallback(event.url);
+    const handleDeepLink = async (event: { url: string }) => {
+      const code = extractCodeFromUrl(event.url);
+      if (code) {
+        setIsSigningIn(true);
+        await exchangeCodeForSession(code);
+        setIsSigningIn(false);
+      }
     };
 
     const subscription = Linking.addEventListener("url", handleDeepLink);
 
     Linking.getInitialURL().then((url) => {
       if (url) {
-        handleAuthCallback(url);
+        handleDeepLink({ url });
       }
     });
 
     return () => {
       subscription.remove();
     };
-  }, [handleAuthCallback]);
+  }, [exchangeCodeForSession, extractCodeFromUrl]);
 
   const handleLogin = async () => {
     setIsSigningIn(true);
 
     try {
       const baseUrl = getApiUrl();
-      const redirectUri = Linking.createURL("/auth/success");
       const loginUrl = `${baseUrl}api/auth/login?redirect=${encodeURIComponent(redirectUri)}`;
+
+      AppLogger.info(`Auth: redirectUri=${redirectUri}`);
 
       const result = await WebBrowser.openAuthSessionAsync(
         loginUrl,
         redirectUri,
+        { preferEphemeralSession: Platform.OS === "ios" },
       );
 
       if (result.type === "success" && result.url) {
-        await handleAuthCallback(result.url);
-      } else {
-        setIsSigningIn(false);
+        const code = extractCodeFromUrl(result.url);
+        if (code) {
+          await exchangeCodeForSession(code);
+        } else {
+          AppLogger.error("No auth code in callback URL:", result.url);
+        }
       }
+      setIsSigningIn(false);
     } catch (error) {
       AppLogger.error("Login error:", error);
       Alert.alert(t("error"), t("authFailed"));
