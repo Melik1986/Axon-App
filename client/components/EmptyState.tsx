@@ -1,14 +1,23 @@
 import React from "react";
-import { StyleSheet, View, Image, ImageSourcePropType } from "react-native";
+import {
+  StyleSheet,
+  View,
+  Image,
+  ImageSourcePropType,
+  ImageStyle,
+  StyleProp,
+} from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 
 interface EmptyStateProps {
-  image: ImageSourcePropType;
+  image?: ImageSourcePropType | null;
   title: string;
   subtitle?: string;
   children?: React.ReactNode;
+  imageStyle?: StyleProp<ImageStyle>;
+  icon?: React.ReactNode;
 }
 
 export function EmptyState({
@@ -16,12 +25,22 @@ export function EmptyState({
   title,
   subtitle,
   children,
+  imageStyle,
+  icon,
 }: EmptyStateProps) {
   const { theme } = useTheme();
 
   return (
     <View style={styles.container}>
-      <Image source={image} style={styles.image} resizeMode="contain" />
+      {icon ? (
+        <View style={styles.iconContainer}>{icon}</View>
+      ) : image ? (
+        <Image
+          source={image}
+          style={[styles.image, imageStyle]}
+          resizeMode="contain"
+        />
+      ) : null}
       <ThemedText type="h4" style={styles.title}>
         {title}
       </ThemedText>
@@ -37,10 +56,13 @@ export function EmptyState({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: Spacing["3xl"],
+  },
+  iconContainer: {
+    marginBottom: Spacing["2xl"],
+    opacity: 0.8,
   },
   image: {
     width: 160,

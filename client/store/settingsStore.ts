@@ -1,7 +1,11 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemeMode } from "@/constants/theme";
+import {
+  createHybridStorage,
+  SETTINGS_STD_PATHS,
+  SETTINGS_HIGH_SEC_PATHS,
+} from "@/lib/secure-settings-storage";
 
 interface LLMSettings {
   baseUrl: string;
@@ -79,7 +83,7 @@ const defaultRag: RagSettings = {
   qdrant: {
     url: "",
     apiKey: "",
-    collectionName: "kb_jarvis",
+    collectionName: "kb_axon",
   },
   supabase: {
     url: "",
@@ -98,8 +102,8 @@ export const useSettingsStore = create<SettingsState>()(
       erp: defaultERP,
       rag: defaultRag,
       voice: "alloy",
-      language: "ru",
-      theme: "dark",
+      language: "system",
+      theme: "system",
       setLLMSettings: (settings) =>
         set((state) => ({ llm: { ...state.llm, ...settings } })),
       setERPSettings: (settings) =>
@@ -113,8 +117,8 @@ export const useSettingsStore = create<SettingsState>()(
           },
         })),
       setVoice: (voice) => set({ voice }),
-      setLanguage: (language) => set({ language }),
-      setTheme: (theme) => set({ theme }),
+      setLanguage: (language: string) => set({ language }),
+      setTheme: (theme: ThemeMode) => set({ theme }),
       resetToDefaults: () =>
         set({
           llm: defaultLLM,
@@ -127,7 +131,15 @@ export const useSettingsStore = create<SettingsState>()(
     }),
     {
       name: "jsrvis-settings",
-      storage: createJSONStorage(() => AsyncStorage),
+      storage: createJSONStorage(() =>
+        createHybridStorage(
+          "jsrvis-settings",
+          SETTINGS_STD_PATHS,
+          "axon-settings-secrets",
+          SETTINGS_HIGH_SEC_PATHS,
+          "axon-settings-high-sec",
+        ),
+      ),
     },
   ),
 );

@@ -2,6 +2,7 @@ import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import { NestExpressApplication } from "@nestjs/platform-express";
+import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
 import * as express from "express";
 import session from "express-session";
 import passport from "passport";
@@ -9,6 +10,10 @@ import * as fs from "fs";
 import * as path from "path";
 import { AppModule } from "./app.module";
 import { AppLogger } from "./utils/logger";
+import { LlmProviderExceptionFilter } from "./filters/llm-provider-exception.filter";
+
+// Debug log path - available for future debugging needs
+// const DEBUG_LOG_PATH = path.join(process.cwd(), ".cursor", "debug.log");
 
 function getAppName(): string {
   try {
@@ -94,9 +99,14 @@ async function bootstrap() {
   });
 
   // Session middleware for Replit Auth
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret && process.env.NODE_ENV === "production") {
+    throw new Error("SESSION_SECRET must be set in production");
+  }
+
   app.use(
     session({
-      secret: process.env.SESSION_SECRET || "axon-session-secret",
+      secret: sessionSecret || "axon-session-secret-dev-only",
       resave: false,
       saveUninitialized: false,
       cookie: {
@@ -112,6 +122,9 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Global exception filter for LLM provider errors (user-friendly messages)
+  app.useGlobalFilters(new LlmProviderExceptionFilter());
+
   // Global validation pipe
   app.useGlobalPipes(
     new ValidationPipe({
@@ -123,6 +136,18 @@ async function bootstrap() {
 
   // Set global prefix for API routes
   app.setGlobalPrefix("api");
+
+  // Swagger OpenAPI (dev: /api/docs)
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle("AXON API")
+    .setDescription("Universal AI ERP OS — Chat, Conductor, Auth, RAG")
+    .setVersion("1.0")
+    .addTag("conversations", "Chat & Conductor")
+    .addTag("auth", "Authentication")
+    .addTag("rag", "Knowledge Base (RAG)")
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup("api/docs", app, document);
 
   // Serve static Expo files
   const staticBuildPath = path.resolve(process.cwd(), "static-build");
@@ -180,9 +205,32 @@ async function bootstrap() {
     },
   );
 
-  const port = process.env.PORT || 5000;
-  await app.listen(port);
-  AppLogger.info(`Nest.js server running on port ${port}`);
+  let port = Number(process.env.PORT) || 5000;
+  const maxPortAttempts = 10;
+
+  for (let attempt = 0; attempt < maxPortAttempts; attempt++) {
+    try {
+      await app.listen(port, "0.0.0.0");
+      AppLogger.info(`Nest.js server running on port ${port} (0.0.0.0)`);
+      if (attempt > 0) {
+        AppLogger.warn(
+          `Port ${Number(process.env.PORT) || 5000} was in use; using ${port}. Set PORT=${port} or free the default port.`,
+        );
+      }
+      return;
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code === "EADDRINUSE" && attempt < maxPortAttempts - 1) {
+        AppLogger.warn(`Port ${port} in use, trying ${port + 1}...`);
+        port += 1;
+      } else {
+        throw err;
+      }
+    }
+  }
 }
 
-bootstrap();
+bootstrap().catch((err: unknown) => {
+  AppLogger.error("Bootstrap failed", err);
+  process.exit(1);
+});

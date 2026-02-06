@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -18,6 +19,8 @@ import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore, RagProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useBiometricAuth } from "@/hooks/useBiometricAuth";
+import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { apiRequest, getApiUrl } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
@@ -28,6 +31,8 @@ export default function RAGSettingsScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
+  useProtectScreen();
 
   const { rag, setRagSettings } = useSettingsStore();
 
@@ -91,6 +96,23 @@ export default function RAGSettingsScreen() {
 
   const [saving, setSaving] = useState(false);
 
+  const providerDocsUrlByProvider: Partial<Record<RagProvider, string>> = {
+    supabase: "https://supabase.com/docs/guides/api/api-keys",
+    qdrant: "https://qdrant.tech/documentation/cloud/authentication/",
+    replit:
+      "https://docs.replit.com/cloud-services/storage-and-databases/sql-database",
+  };
+
+  const selectedProviderDocsUrl =
+    provider === null ? undefined : providerDocsUrlByProvider[provider];
+  const selectedProviderLabel =
+    providers.find((p) => p.id === provider)?.name ?? provider ?? "";
+
+  const handleOpenSelectedProviderDocs = async () => {
+    if (!selectedProviderDocsUrl) return;
+    await Linking.openURL(selectedProviderDocsUrl);
+  };
+
   const handleSave = async () => {
     if (!provider) return;
 
@@ -100,7 +122,7 @@ export default function RAGSettingsScreen() {
       qdrant: {
         url: qdrantUrl,
         apiKey: qdrantApiKey,
-        collectionName: collectionName || "kb_jarvis",
+        collectionName: collectionName || "kb_axon",
       },
       supabase: {
         url: supabaseUrl,
@@ -124,7 +146,7 @@ export default function RAGSettingsScreen() {
     }
   };
 
-  if (loading || provider === null) {
+  if (loading || provider === null || !isUnlocked) {
     return (
       <View
         style={[
@@ -133,7 +155,18 @@ export default function RAGSettingsScreen() {
           { backgroundColor: theme.backgroundRoot },
         ]}
       >
-        <ActivityIndicator size="large" color={theme.primary} />
+        {!isUnlocked && !isAuthenticating ? (
+          <View style={{ alignItems: "center", padding: Spacing.xl }}>
+            <ThemedText
+              style={{ marginBottom: Spacing.lg, textAlign: "center" }}
+            >
+              {t("accessBlocked")}
+            </ThemedText>
+            <Button onPress={authenticate}>{t("tryAgain")}</Button>
+          </View>
+        ) : (
+          <ActivityIndicator size="large" color={theme.primary} />
+        )}
       </View>
     );
   }
@@ -151,11 +184,41 @@ export default function RAGSettingsScreen() {
       bottomOffset={20}
     >
       <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.warning + "10",
+              borderColor: theme.warning + "40",
+            },
+          ]}
         >
-          {t("ragConfigDesc")}
-        </ThemedText>
+          <ThemedText style={[styles.hintText, { color: theme.warning }]}>
+            ⚠️ {t("secretsWarningTitle")}
+          </ThemedText>
+          <ThemedText
+            style={[
+              styles.hintText,
+              { color: theme.textSecondary, marginTop: Spacing.xs },
+            ]}
+          >
+            {t("secretsWarningBody")}
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.primary + "10",
+              borderColor: theme.primary + "30",
+            },
+          ]}
+        >
+          <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
+            💡 {t("ragHint")}
+          </ThemedText>
+        </View>
 
         <View style={styles.providerList}>
           {providers.map((p) => (
@@ -209,6 +272,17 @@ export default function RAGSettingsScreen() {
             </Pressable>
           ))}
         </View>
+
+        {selectedProviderDocsUrl ? (
+          <Pressable
+            onPress={handleOpenSelectedProviderDocs}
+            style={styles.docsLinkRow}
+          >
+            <ThemedText style={[styles.docsLinkText, { color: theme.link }]}>
+              {t("apiKeyDocs")}: {selectedProviderLabel}
+            </ThemedText>
+          </Pressable>
+        ) : null}
       </View>
 
       {provider === "qdrant" && (
@@ -277,7 +351,7 @@ export default function RAGSettingsScreen() {
                   color: theme.text,
                 },
               ]}
-              placeholder="kb_jarvis"
+              placeholder="kb_axon"
               placeholderTextColor={theme.textTertiary}
               value={collectionName}
               onChangeText={setCollectionName}
@@ -474,6 +548,24 @@ const styles = StyleSheet.create({
   },
   inputGroup: {
     marginBottom: Spacing.lg,
+  },
+  hintCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  hintText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  docsLinkRow: {
+    marginTop: Spacing.md,
+  },
+  docsLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
   inputLabel: {
     fontSize: 14,

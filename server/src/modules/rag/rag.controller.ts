@@ -8,14 +8,28 @@ import {
   Body,
   UploadedFile,
   UseInterceptors,
+  UseGuards,
+  Req,
   HttpException,
   HttpStatus,
 } from "@nestjs/common";
+import { ApiTags } from "@nestjs/swagger";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { Request } from "express";
 import { RagService } from "./rag.service";
 import { DocumentMetadata, RagSettingsRequest } from "./rag.types";
+import { RateLimitGuard } from "../../guards/rate-limit.guard";
+import { AuthGuard } from "../auth/auth.guard";
 
+interface ExtendedRequest extends Request {
+  ephemeralCredentials?: {
+    ragSettings?: RagSettingsRequest;
+  };
+}
+
+@ApiTags("rag")
 @Controller("documents")
+@UseGuards(AuthGuard)
 export class RagController {
   constructor(private readonly ragService: RagService) {}
 
@@ -60,17 +74,28 @@ export class RagController {
   }
 
   @Post("upload")
+  @UseGuards(AuthGuard, RateLimitGuard)
   @UseInterceptors(FileInterceptor("file"))
   async uploadDocument(
     @UploadedFile() file: Express.Multer.File,
     @Body("name") name?: string,
+    @Body("ragSettings") ragSettings?: RagSettingsRequest,
+    @Req() req?: ExtendedRequest,
   ): Promise<DocumentMetadata> {
     if (!file) {
       throw new HttpException("No file provided", HttpStatus.BAD_REQUEST);
     }
 
     const fileName = name || file.originalname;
-    return this.ragService.uploadDocument(file.buffer, fileName, file.mimetype);
+    // Use ragSettings from body or ephemeralCredentials
+    const settings =
+      ragSettings || req?.ephemeralCredentials?.ragSettings || undefined;
+    return this.ragService.uploadDocument(
+      file.buffer,
+      fileName,
+      file.mimetype,
+      settings,
+    );
   }
 
   @Post("upload-url")
@@ -107,15 +132,46 @@ export class RagController {
   }
 
   @Post("search")
-  async search(@Body("query") query: string, @Body("limit") limit?: number) {
+  @UseGuards(AuthGuard, RateLimitGuard)
+  async search(
+    @Body("query") query: string,
+    @Body("limit") limit?: number,
+    @Body("ragSettings") ragSettings?: RagSettingsRequest,
+    @Req() req?: ExtendedRequest,
+  ) {
     if (!query) {
       throw new HttpException("Query is required", HttpStatus.BAD_REQUEST);
     }
-    return this.ragService.search(query, limit || 5);
+    // Use ragSettings from body or ephemeralCredentials
+    const settings =
+      ragSettings || req?.ephemeralCredentials?.ragSettings || undefined;
+    return this.ragService.search(query, limit || 5, settings);
   }
 
   @Post("seed-demo")
-  async seedDemo() {
-    return this.ragService.seedDemoData();
+  @UseGuards(AuthGuard, RateLimitGuard)
+  async seedDemo(
+    @Body("ragSettings") ragSettings?: RagSettingsRequest,
+    @Req() req?: ExtendedRequest,
+  ) {
+    // Use ragSettings from body or ephemeralCredentials
+    const settings =
+      ragSettings || req?.ephemeralCredentials?.ragSettings || undefined;
+    return this.ragService.seedDemoData(settings);
+  }
+
+  @Post("embeddings")
+  @UseGuards(AuthGuard, RateLimitGuard)
+  async getEmbeddings(
+    @Body("text") text: string,
+    @Body("ragSettings") ragSettings?: RagSettingsRequest,
+    @Req() req?: ExtendedRequest,
+  ) {
+    if (!text) {
+      throw new HttpException("Text is required", HttpStatus.BAD_REQUEST);
+    }
+    const settings =
+      ragSettings || req?.ephemeralCredentials?.ragSettings || undefined;
+    return { embedding: await this.ragService.getEmbeddings(text, settings) };
   }
 }

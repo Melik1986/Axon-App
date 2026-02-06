@@ -1,5 +1,5 @@
 /**
- * Интерфейс для ошибок Supabase
+ * Interface for Supabase errors
  */
 interface SupabaseError {
   message?: string;
@@ -9,7 +9,7 @@ interface SupabaseError {
 }
 
 /**
- * Уровни логирования
+ * Logging levels
  */
 export enum LogLevel {
   DEBUG = 0,
@@ -20,7 +20,7 @@ export enum LogLevel {
 }
 
 /**
- * Опции логирования
+ * Logging options
  */
 interface LogOptions {
   timestamp?: boolean;
@@ -29,32 +29,32 @@ interface LogOptions {
 }
 
 /**
- * Универсальная утилита для логирования в приложении (Client)
- * Расширенная версия с уровнями логирования и timestamps
+ * Universal utility for application logging (Client)
+ * Extended version with logging levels and timestamps
  */
 export class AppLogger {
-  // В React Native используем глобальную переменную __DEV__
+  // In React Native use global variable __DEV__
   private static isDevelopment = __DEV__;
   private static currentLevel: LogLevel = __DEV__
     ? LogLevel.DEBUG
     : LogLevel.WARN;
 
   /**
-   * Установить уровень логирования
+   * Set logging level
    */
   static setLevel(level: LogLevel): void {
     this.currentLevel = level;
   }
 
   /**
-   * Получить текущий уровень логирования
+   * Get current logging level
    */
   static getLevel(): LogLevel {
     return this.currentLevel;
   }
 
   /**
-   * Форматирование сообщения с timestamp
+   * Message formatting with timestamp
    */
   private static formatMessage(
     level: string,
@@ -71,7 +71,7 @@ export class AppLogger {
   }
 
   /**
-   * Проверка, нужно ли логировать для текущего уровня
+   * Check if logging is needed for current level
    */
   private static shouldLog(level: LogLevel): boolean {
     return level >= this.currentLevel;
@@ -97,7 +97,7 @@ export class AppLogger {
     });
 
     if (error) {
-      // Специальная обработка для ошибок Supabase
+      // Special handling for Supabase errors
       if (typeof error === "object" && error !== null) {
         const supabaseError = error as SupabaseError;
         if (
@@ -164,7 +164,7 @@ export class AppLogger {
   }
 
   /**
-   * Группирование логов (для debugging)
+   * Group logs (for debugging)
    */
   static group(label: string): void {
     if (this.isDevelopment) {
@@ -181,7 +181,7 @@ export class AppLogger {
   }
 
   /**
-   * Таймер для замера производительности
+   * Timer for performance measurement
    */
   static time(label: string): void {
     if (this.isDevelopment) {
@@ -198,7 +198,7 @@ export class AppLogger {
   }
 
   /**
-   * Вывод таблицы (для debugging)
+   * Table output (for debugging)
    */
   static table(data: unknown): void {
     if (this.isDevelopment) {

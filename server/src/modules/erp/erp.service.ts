@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import {
   ErpConfig,
@@ -8,13 +8,18 @@ import {
   CreateInvoiceRequest,
 } from "./erp.types";
 import { AppLogger } from "../../utils/logger";
+import { CircuitBreakerService } from "../../services/circuit-breaker.service";
 
 @Injectable()
 export class ErpService {
   private config: ErpConfig;
   private isConfigured: boolean;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    @Inject(ConfigService) private configService: ConfigService,
+    @Inject(CircuitBreakerService)
+    private circuitBreaker: CircuitBreakerService,
+  ) {
     this.config = {
       provider: "1c",
       baseUrl:
@@ -43,39 +48,59 @@ export class ErpService {
   ): Promise<StockItem[]> {
     const config = { ...this.config, ...customConfig };
 
-    if (!config.baseUrl) {
+    if (config.provider === "demo") {
       return this.getMockStock(productName);
     }
 
+    if (!config.baseUrl) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ERP Base URL is required in production");
+      }
+      return this.getMockStock(productName);
+    }
+
+    const breaker = this.circuitBreaker.getBreaker(
+      "erp-get-stock",
+      async () => {
+        let url = `${config.baseUrl}/AccumulationRegister_ТоварыНаСкладах/Balance?$format=json`;
+        if (productName) {
+          url += `&$filter=contains(Номенклатура/Description,'${encodeURIComponent(productName)}')`;
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            Authorization: this.getAuthHeader(config),
+            Accept: "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`ERP OData error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return (data.value || []).map(
+          (item: { Номенклатура_Key: string; КоличествоBalance: number }) => ({
+            id: item.Номенклатура_Key,
+            name: productName || "Товар",
+            quantity: item.КоличествоBalance || 0,
+            unit: "шт",
+          }),
+        );
+      },
+    );
+
     try {
-      let url = `${config.baseUrl}/AccumulationRegister_ТоварыНаСкладах/Balance?$format=json`;
-      if (productName) {
-        url += `&$filter=contains(Номенклатура/Description,'${encodeURIComponent(productName)}')`;
-      }
-
-      const response = await fetch(url, {
-        headers: {
-          Authorization: this.getAuthHeader(config),
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        AppLogger.error(`ERP OData error: ${response.status}`);
-        return this.getMockStock(productName);
-      }
-
-      const data = await response.json();
-      return (data.value || []).map(
-        (item: { Номенклатура_Key: string; КоличествоBalance: number }) => ({
-          id: item.Номенклатура_Key,
-          name: productName || "Товар",
-          quantity: item.КоличествоBalance || 0,
-          unit: "шт",
-        }),
-      );
+      return (await breaker.fire()) as StockItem[];
     } catch (error) {
-      AppLogger.error("Error fetching stock from ERP:", error);
+      if (process.env.NODE_ENV === "production") {
+        AppLogger.error("ERP getStock failed:", error);
+        throw error;
+      }
+      AppLogger.warn("ERP getStock failed, using mock fallback:", error);
+      if (breaker.opened) {
+        AppLogger.warn("Circuit breaker is OPEN for erp-get-stock");
+      }
       return this.getMockStock(productName);
     }
   }
@@ -86,46 +111,66 @@ export class ErpService {
   ): Promise<Product[]> {
     const config = { ...this.config, ...customConfig };
 
-    if (!config.baseUrl) {
+    if (config.provider === "demo") {
       return this.getMockProducts(filter);
     }
 
+    if (!config.baseUrl) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ERP Base URL is required in production");
+      }
+      return this.getMockProducts(filter);
+    }
+
+    const breaker = this.circuitBreaker.getBreaker(
+      "erp-get-products",
+      async () => {
+        let url = `${config.baseUrl}/Catalog_Номенклатура?$format=json&$select=Ref_Key,Description,Артикул,Цена,ЭтоУслуга`;
+        if (filter) {
+          url += `&$filter=contains(Description,'${encodeURIComponent(filter)}')`;
+        }
+
+        const response = await fetch(url, {
+          headers: {
+            Authorization: this.getAuthHeader(config),
+            Accept: "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`ERP OData error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        return (data.value || []).map(
+          (item: {
+            Ref_Key: string;
+            Description: string;
+            Артикул?: string;
+            Цена?: number;
+            ЭтоУслуга?: boolean;
+          }) => ({
+            id: item.Ref_Key,
+            name: item.Description,
+            sku: item.Артикул,
+            price: item.Цена,
+            isService: item.ЭтоУслуга,
+          }),
+        );
+      },
+    );
+
     try {
-      let url = `${config.baseUrl}/Catalog_Номенклатура?$format=json&$select=Ref_Key,Description,Артикул,Цена,ЭтоУслуга`;
-      if (filter) {
-        url += `&$filter=contains(Description,'${encodeURIComponent(filter)}')`;
-      }
-
-      const response = await fetch(url, {
-        headers: {
-          Authorization: this.getAuthHeader(config),
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        AppLogger.error(`ERP OData error: ${response.status}`);
-        return this.getMockProducts(filter);
-      }
-
-      const data = await response.json();
-      return (data.value || []).map(
-        (item: {
-          Ref_Key: string;
-          Description: string;
-          Артикул?: string;
-          Цена?: number;
-          ЭтоУслуга?: boolean;
-        }) => ({
-          id: item.Ref_Key,
-          name: item.Description,
-          sku: item.Артикул,
-          price: item.Цена,
-          isService: item.ЭтоУслуга,
-        }),
-      );
+      return (await breaker.fire()) as Product[];
     } catch (error) {
-      AppLogger.error("Error fetching products from ERP:", error);
+      if (process.env.NODE_ENV === "production") {
+        AppLogger.error("ERP getProducts failed:", error);
+        throw error;
+      }
+      AppLogger.warn("ERP getProducts failed, using mock fallback:", error);
+      if (breaker.opened) {
+        AppLogger.warn("Circuit breaker is OPEN for erp-get-products");
+      }
       return this.getMockProducts(filter);
     }
   }
@@ -136,65 +181,85 @@ export class ErpService {
   ): Promise<Invoice> {
     const config = { ...this.config, ...customConfig };
 
-    if (!config.baseUrl) {
+    if (config.provider === "demo") {
       return this.createMockInvoice(request);
     }
 
-    try {
-      const items = request.items.map((item) => ({
-        productId: "",
-        productName: item.productName,
-        quantity: item.quantity,
-        price: item.price,
-        amount: item.quantity * item.price,
-      }));
-
-      const total = items.reduce((sum, item) => sum + item.amount, 0);
-
-      const documentData = {
-        Date: new Date().toISOString(),
-        Контрагент: request.customerName,
-        Комментарий: request.comment || "",
-        Товары: items.map((item) => ({
-          Номенклатура: item.productName,
-          Количество: item.quantity,
-          Цена: item.price,
-          Сумма: item.amount,
-        })),
-      };
-
-      const response = await fetch(
-        `${config.baseUrl}/Document_РеализацияТоваровИУслуг?$format=json`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: this.getAuthHeader(config),
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify(documentData),
-        },
-      );
-
-      if (!response.ok) {
-        AppLogger.error(`ERP OData error: ${response.status}`);
-        return this.createMockInvoice(request);
+    if (!config.baseUrl) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("ERP Base URL is required in production");
       }
+      return this.createMockInvoice(request);
+    }
 
-      const result = await response.json();
+    const breaker = this.circuitBreaker.getBreaker(
+      "erp-create-invoice",
+      async () => {
+        const items = request.items.map((item) => ({
+          productId: "",
+          productName: item.productName,
+          quantity: item.quantity,
+          price: item.price,
+          amount: item.quantity * item.price,
+        }));
 
-      return {
-        id: result.Ref_Key || `inv-${Date.now()}`,
-        number: result.Number || `РТУ-${Date.now()}`,
-        date: result.Date || new Date().toISOString(),
-        customerName: request.customerName,
-        items,
-        total,
-        status: "draft",
-        comment: request.comment,
-      };
+        const total = items.reduce((sum, item) => sum + item.amount, 0);
+
+        const documentData = {
+          Date: new Date().toISOString(),
+          Контрагент: request.customerName,
+          Комментарий: request.comment || "",
+          Товары: items.map((item) => ({
+            Номенклатура: item.productName,
+            Количество: item.quantity,
+            Цена: item.price,
+            Сумма: item.amount,
+          })),
+        };
+
+        const response = await fetch(
+          `${config.baseUrl}/Document_РеализацияТоваровИУслуг?$format=json`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: this.getAuthHeader(config),
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            body: JSON.stringify(documentData),
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`ERP OData error: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        return {
+          id: result.Ref_Key || `inv-${Date.now()}`,
+          number: result.Number || `РТУ-${Date.now()}`,
+          date: result.Date || new Date().toISOString(),
+          customerName: request.customerName,
+          items,
+          total,
+          status: "draft",
+          comment: request.comment,
+        };
+      },
+    );
+
+    try {
+      return (await breaker.fire()) as Invoice;
     } catch (error) {
-      AppLogger.error("Error creating invoice in ERP:", error);
+      if (process.env.NODE_ENV === "production") {
+        AppLogger.error("ERP createInvoice failed:", error);
+        throw error;
+      }
+      AppLogger.warn("ERP createInvoice failed, using mock fallback:", error);
+      if (breaker.opened) {
+        AppLogger.warn("Circuit breaker is OPEN for erp-create-invoice");
+      }
       return this.createMockInvoice(request);
     }
   }

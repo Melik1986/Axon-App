@@ -1,9 +1,18 @@
-import { useState, useCallback, useRef } from "react";
-import { Audio } from "expo-av";
-import { Platform } from "react-native";
+import { useState, useCallback, useEffect } from "react";
+import {
+  useAudioRecorder,
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorderState,
+  useAudioPlayer,
+} from "expo-audio";
+import * as FileSystem from "expo-file-system/legacy";
+import { Platform, Alert } from "react-native";
 import { getApiUrl } from "@/lib/query-client";
 import { useAuthStore } from "@/store/authStore";
 import { useChatStore } from "@/store/chatStore";
+import { useSettingsStore } from "@/store/settingsStore";
 import { AppLogger } from "@/lib/logger";
 
 interface VoiceResponse {
@@ -13,32 +22,42 @@ interface VoiceResponse {
 }
 
 /**
- * Hook for voice interactions with Jarvis.
+ * Hook for voice interactions with Axon using modern expo-audio API.
  * Handles recording, transcription, and audio playback.
  */
 export function useVoice() {
-  const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [transcription, setTranscription] = useState<string | null>(null);
 
-  const recordingRef = useRef<Audio.Recording | null>(null);
-  const soundRef = useRef<Audio.Sound | null>(null);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(audioRecorder);
+  const player = useAudioPlayer(""); // Empty source initially
 
   const { currentConversationId } = useChatStore();
   const { session } = useAuthStore();
+  const { llm, erp, rag } = useSettingsStore();
 
   /**
    * Request microphone permissions
    */
-  const requestPermissions = useCallback(async (): Promise<boolean> => {
-    try {
-      const { status } = await Audio.requestPermissionsAsync();
-      return status === "granted";
-    } catch (err) {
-      AppLogger.error("Error requesting permissions:", err);
-      return false;
-    }
+  useEffect(() => {
+    (async () => {
+      try {
+        const status = await AudioModule.requestRecordingPermissionsAsync();
+        if (status.granted) {
+          await setAudioModeAsync({
+            playsInSilentMode: true,
+            allowsRecording: true,
+          });
+        } else {
+          setError("Microphone permission denied");
+        }
+      } catch (err) {
+        AppLogger.error("Error requesting permissions:", err);
+      }
+    })();
   }, []);
 
   /**
@@ -46,67 +65,95 @@ export function useVoice() {
    */
   const startRecording = useCallback(async (): Promise<boolean> => {
     setError(null);
-
-    // Check permissions
-    const hasPermission = await requestPermissions();
-    if (!hasPermission) {
-      setError("Microphone permission denied");
-      return false;
-    }
-
     try {
-      // Configure audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: true,
-        playsInSilentModeIOS: true,
-      });
+      const status = await AudioModule.requestRecordingPermissionsAsync();
+      if (!status.granted) {
+        Alert.alert("Permission to access microphone was denied");
+        return false;
+      }
 
-      // Create and start recording
-      const { recording } = await Audio.Recording.createAsync(
-        Audio.RecordingOptionsPresets.HIGH_QUALITY,
-      );
-
-      recordingRef.current = recording;
-      setIsRecording(true);
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
       return true;
     } catch (err) {
       AppLogger.error("Error starting recording:", err);
       setError("Failed to start recording");
       return false;
     }
-  }, [requestPermissions]);
+  }, [audioRecorder]);
+
+  /**
+   * Play audio from base64 PCM/WAV data
+   */
+  const playAudio = useCallback(async (base64Audio: string): Promise<void> => {
+    try {
+      setIsPlaying(true);
+
+      if (Platform.OS === "web") {
+        const audioContext = new AudioContext();
+        const audioBuffer = await audioContext.decodeAudioData(
+          base64ToArrayBuffer(base64Audio),
+        );
+        const source = audioContext.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioContext.destination);
+        source.onended = () => setIsPlaying(false);
+        source.start();
+      } else {
+        // For native (iOS/Android), write base64 to temp file and play
+        const tempPath = `${FileSystem.cacheDirectory}axon-tts-response.wav`;
+
+        // Write base64 audio to temp file
+        await FileSystem.writeAsStringAsync(tempPath, base64Audio, {
+          encoding: "base64",
+        });
+
+        // Create a new Audio instance for playback
+        const { createAudioPlayer } = await import("expo-audio");
+        const audioPlayer = createAudioPlayer({ uri: tempPath });
+
+        audioPlayer.addListener("playbackStatusUpdate", (status) => {
+          if (status.didJustFinish) {
+            setIsPlaying(false);
+            // Cleanup temp file
+            FileSystem.deleteAsync(tempPath, { idempotent: true }).catch(() => {
+              // Ignore cleanup errors
+            });
+          }
+        });
+
+        await audioPlayer.play();
+      }
+    } catch (err) {
+      AppLogger.error("Error playing audio:", err);
+      setIsPlaying(false);
+    }
+  }, []);
 
   /**
    * Stop recording and send to server
    */
   const stopRecording = useCallback(async (): Promise<VoiceResponse | null> => {
-    if (!recordingRef.current) {
+    if (!recorderState.isRecording) {
       return null;
     }
 
-    setIsRecording(false);
     setIsProcessing(true);
     setError(null);
 
     try {
       // Stop recording
-      await recordingRef.current.stopAndUnloadAsync();
-      const uri = recordingRef.current.getURI();
-      recordingRef.current = null;
+      await audioRecorder.stop();
+      const uri = audioRecorder.uri;
 
       if (!uri) {
         throw new Error("No recording URI");
       }
 
-      // Reset audio mode
-      await Audio.setAudioModeAsync({
-        allowsRecordingIOS: false,
-      });
-
       // Read audio file and convert to base64
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      const base64 = await blobToBase64(blob);
+      const base64 = await FileSystem.readAsStringAsync(uri, {
+        encoding: "base64",
+      });
 
       // Send to server
       if (!currentConversationId) {
@@ -127,15 +174,42 @@ export function useVoice() {
         {
           method: "POST",
           headers,
-          body: JSON.stringify({ audio: base64 }),
+          body: JSON.stringify({
+            audio: base64,
+            transcriptionModel: "gpt-4o-mini-transcribe",
+            llmSettings: {
+              provider: llm.provider,
+              baseUrl: llm.baseUrl,
+              apiKey: llm.apiKey,
+              modelName: llm.modelName,
+            },
+            erpSettings: {
+              provider: erp.provider,
+              baseUrl: erp.url,
+              username: erp.username,
+              password: erp.password,
+              apiKey: erp.apiKey,
+              apiType: erp.apiType,
+            },
+            ragSettings: {
+              provider: rag.provider,
+              qdrant: rag.qdrant,
+            },
+          }),
         },
       );
+
+      if (!serverResponse.ok) {
+        const errorText = await serverResponse.text().catch(() => "");
+        throw new Error(errorText || "Voice request failed");
+      }
 
       // Process SSE response
       const reader = serverResponse.body?.getReader();
       if (!reader) throw new Error("No response body");
 
       const decoder = new TextDecoder();
+      let buffer = "";
       let userTranscript = "";
       let assistantTranscript = "";
       const audioChunks: string[] = [];
@@ -144,8 +218,10 @@ export function useVoice() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n");
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+        let doneReceived = false;
 
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
@@ -154,15 +230,22 @@ export function useVoice() {
 
             if (data.type === "user_transcript") {
               userTranscript = data.data;
-            } else if (data.type === "transcript") {
-              assistantTranscript += data.data;
+            } else if (data.type === "transcript" || data.content) {
+              assistantTranscript += data.data ?? data.content ?? "";
             } else if (data.type === "audio") {
               audioChunks.push(data.data);
+            } else if (data.type === "error" || data.error) {
+              throw new Error(data.error || "Voice request failed");
+            } else if (data.type === "done" || data.done) {
+              doneReceived = true;
             }
-          } catch {
-            // Ignore parse errors
+          } catch (err) {
+            if (!(err instanceof SyntaxError)) {
+              throw err;
+            }
           }
         }
+        if (doneReceived) break;
       }
 
       const result: VoiceResponse = {
@@ -170,6 +253,10 @@ export function useVoice() {
         assistantTranscript,
         audioData: audioChunks.length > 0 ? audioChunks.join("") : undefined,
       };
+
+      if (userTranscript) {
+        setTranscription(userTranscript);
+      }
 
       // Auto-play response audio if available
       if (result.audioData) {
@@ -184,78 +271,49 @@ export function useVoice() {
     } finally {
       setIsProcessing(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentConversationId, session]);
-
-  /**
-   * Play audio from base64 PCM data
-   */
-  const playAudio = useCallback(async (base64Audio: string): Promise<void> => {
-    try {
-      setIsPlaying(true);
-
-      // For PCM audio, we need to create a proper audio file
-      // This is a simplified implementation
-      if (Platform.OS === "web") {
-        // Web Audio API for PCM playback
-        const audioContext = new AudioContext();
-        const audioBuffer = await audioContext.decodeAudioData(
-          base64ToArrayBuffer(base64Audio),
-        );
-        const source = audioContext.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioContext.destination);
-        source.onended = () => setIsPlaying(false);
-        source.start();
-      } else {
-        // For native, we'd need to save as WAV and play
-        // This requires additional processing
-        AppLogger.info("Native audio playback not fully implemented");
-        setIsPlaying(false);
-      }
-    } catch (err) {
-      AppLogger.error("Error playing audio:", err);
-      setIsPlaying(false);
-    }
-  }, []);
+  }, [
+    audioRecorder,
+    recorderState.isRecording,
+    currentConversationId,
+    session,
+    llm,
+    erp,
+    rag,
+    playAudio,
+  ]);
 
   /**
    * Cancel current recording
    */
   const cancelRecording = useCallback(async (): Promise<void> => {
-    if (recordingRef.current) {
+    if (recorderState.isRecording) {
       try {
-        await recordingRef.current.stopAndUnloadAsync();
+        await audioRecorder.stop();
       } catch {
         // Ignore errors during cancel
       }
-      recordingRef.current = null;
     }
-    setIsRecording(false);
-  }, []);
+  }, [audioRecorder, recorderState.isRecording]);
 
   /**
    * Stop any playing audio
    */
   const stopPlayback = useCallback(async (): Promise<void> => {
-    if (soundRef.current) {
-      try {
-        await soundRef.current.stopAsync();
-        await soundRef.current.unloadAsync();
-      } catch {
-        // Ignore errors
-      }
-      soundRef.current = null;
+    try {
+      player.pause();
+      setIsPlaying(false);
+    } catch {
+      // Ignore errors
     }
-    setIsPlaying(false);
-  }, []);
+  }, [player]);
 
   return {
     // State
-    isRecording,
+    isRecording: recorderState.isRecording,
     isProcessing,
     isPlaying,
     error,
+    transcription,
 
     // Actions
     startRecording,
@@ -263,21 +321,9 @@ export function useVoice() {
     cancelRecording,
     playAudio,
     stopPlayback,
-    requestPermissions,
+    requestPermissions: async () =>
+      (await AudioModule.requestRecordingPermissionsAsync()).granted,
   };
-}
-
-// Helper functions
-function blobToBase64(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = (reader.result as string).split(",")[1];
-      resolve(base64);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
 }
 
 function base64ToArrayBuffer(base64: string): ArrayBuffer {

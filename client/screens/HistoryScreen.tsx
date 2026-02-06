@@ -12,14 +12,11 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import SegmentedControl from "@react-native-segmented-control/segmented-control";
 import * as Haptics from "expo-haptics";
+import { Ionicons } from "@expo/vector-icons";
 
-import {
-  AnimatedChatIcon,
-  AnimatedTrashIcon,
-} from "@/components/AnimatedIcons";
+import { AnimatedTrashIcon } from "@/components/AnimatedIcons";
 
 import { ThemedText } from "@/components/ThemedText";
-import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing } from "@/constants/theme";
@@ -123,13 +120,12 @@ export default function HistoryScreen() {
           },
         ]}
       >
-        <View
-          style={[
-            styles.itemIcon,
-            { backgroundColor: theme.backgroundSecondary },
-          ]}
-        >
-          <AnimatedChatIcon size={18} color={theme.primary} />
+        <View style={styles.itemIcon}>
+          <Ionicons
+            name="chatbubble-ellipses-outline"
+            size={22}
+            color={theme.primary}
+          />
         </View>
         <Pressable
           style={styles.itemContent}
@@ -173,11 +169,20 @@ export default function HistoryScreen() {
   );
 
   const renderEmpty = () => (
-    <EmptyState
-      image={require("../../assets/images/empty-history.png")}
-      title={t("noActivityYet")}
-      subtitle={t("historyAppearHere")}
-    />
+    <View style={styles.emptyContainer}>
+      <Ionicons
+        name="time-outline"
+        size={120}
+        color={theme.textTertiary}
+        style={{ marginBottom: Spacing.lg, opacity: 0.5 }}
+      />
+      <ThemedText type="h4" style={{ marginBottom: Spacing.sm }}>
+        {t("noActivityYet")}
+      </ThemedText>
+      <ThemedText style={{ color: theme.textSecondary }}>
+        {t("historyAppearHere")}
+      </ThemedText>
+    </View>
   );
 
   return (
@@ -242,6 +247,13 @@ const styles = StyleSheet.create({
   },
   emptyListContent: {
     justifyContent: "center",
+    flexGrow: 1,
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing.xl * 2,
+    marginTop: Spacing.xl,
   },
   historyItem: {
     flexDirection: "row",
@@ -254,7 +266,6 @@ const styles = StyleSheet.create({
   itemIcon: {
     width: 36,
     height: 36,
-    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,

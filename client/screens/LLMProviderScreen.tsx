@@ -6,7 +6,9 @@ import {
   Pressable,
   Modal,
   FlatList,
+  ActivityIndicator,
 } from "react-native";
+import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -22,6 +24,8 @@ import {
 import { useSettingsStore } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useBiometricAuth } from "@/hooks/useBiometricAuth";
+import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
 type LLMProvider = "replit" | "openai" | "ollama" | "groq" | "custom";
@@ -174,6 +178,8 @@ export default function LLMProviderScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
+  useProtectScreen();
 
   const { llm, setLLMSettings } = useSettingsStore();
 
@@ -234,8 +240,50 @@ export default function LLMProviderScreen() {
     setModelName(defaultModel);
   };
 
+  const providerDocsUrlByProvider: Partial<Record<LLMProvider, string>> = {
+    replit: "https://docs.replit.com/replitai/replit-ai-integrations",
+    openai: "https://platform.openai.com/api-keys",
+    groq: "https://console.groq.com/keys",
+    ollama: "https://docs.ollama.com/api/openai-compatibility",
+    custom: "https://platform.openai.com/api-keys",
+  };
+
+  const selectedProviderDocsUrl = providerDocsUrlByProvider[selectedProvider];
+  const selectedProviderLabel =
+    providers.find((p) => p.id === selectedProvider)?.name ?? selectedProvider;
+
+  const handleOpenSelectedProviderDocs = async () => {
+    if (!selectedProviderDocsUrl) return;
+    await Linking.openURL(selectedProviderDocsUrl);
+  };
+
   const showCustomFields = selectedProvider !== "replit";
   const availableModels = modelsByProvider[selectedProvider];
+
+  if (!isUnlocked) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.loadingContainer,
+          { backgroundColor: theme.backgroundRoot },
+        ]}
+      >
+        {isAuthenticating ? (
+          <ActivityIndicator size="large" color={theme.primary} />
+        ) : (
+          <View style={{ alignItems: "center", padding: Spacing.xl }}>
+            <ThemedText
+              style={{ marginBottom: Spacing.lg, textAlign: "center" }}
+            >
+              Доступ заблокирован. Требуется подтверждение личности.
+            </ThemedText>
+            <Button onPress={authenticate}>Попробовать снова</Button>
+          </View>
+        )}
+      </View>
+    );
+  }
 
   return (
     <KeyboardAwareScrollView
@@ -256,6 +304,42 @@ export default function LLMProviderScreen() {
           {t("chooseProvider")}
         </ThemedText>
 
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.warning + "10",
+              borderColor: theme.warning + "40",
+            },
+          ]}
+        >
+          <ThemedText style={[styles.hintText, { color: theme.warning }]}>
+            ⚠️ {t("secretsWarningTitle")}
+          </ThemedText>
+          <ThemedText
+            style={[
+              styles.hintText,
+              { color: theme.textSecondary, marginTop: Spacing.xs },
+            ]}
+          >
+            {t("secretsWarningBody")}
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.primary + "10",
+              borderColor: theme.primary + "30",
+            },
+          ]}
+        >
+          <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
+            💡 {t("llmHint")}
+          </ThemedText>
+        </View>
+
         <View style={styles.providerList}>
           {providers.map((provider) => (
             <Pressable
@@ -273,12 +357,7 @@ export default function LLMProviderScreen() {
               ]}
               onPress={() => handleProviderSelect(provider.id)}
             >
-              <View
-                style={[
-                  styles.providerIcon,
-                  { backgroundColor: theme.backgroundSecondary },
-                ]}
-              >
+              <View style={styles.providerIcon}>
                 <ProviderIcon
                   name={provider.icon}
                   size={20}
@@ -320,6 +399,17 @@ export default function LLMProviderScreen() {
             </Pressable>
           ))}
         </View>
+
+        {selectedProviderDocsUrl ? (
+          <Pressable
+            onPress={handleOpenSelectedProviderDocs}
+            style={styles.docsLinkRow}
+          >
+            <ThemedText style={[styles.docsLinkText, { color: theme.link }]}>
+              {t("apiKeyDocs")}: {selectedProviderLabel}
+            </ThemedText>
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -466,6 +556,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
   content: {
     paddingHorizontal: Spacing.lg,
   },
@@ -496,10 +590,27 @@ const styles = StyleSheet.create({
   providerIcon: {
     width: 40,
     height: 40,
-    borderRadius: BorderRadius.sm,
     alignItems: "center",
     justifyContent: "center",
     marginRight: Spacing.md,
+  },
+  hintCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  hintText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  docsLinkRow: {
+    marginTop: Spacing.md,
+  },
+  docsLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    textDecorationLine: "underline",
   },
   providerContent: {
     flex: 1,

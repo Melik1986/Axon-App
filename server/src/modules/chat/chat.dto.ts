@@ -69,9 +69,32 @@ export class RagSettingsDto implements RagSettingsRequest {
   qdrant?: QdrantSettingsDto;
 }
 
+export class AttachmentDto {
+  @IsString()
+  name!: string;
+
+  @IsIn(["image", "file"])
+  type!: "image" | "file";
+
+  @IsString()
+  mimeType!: string;
+
+  @IsString()
+  uri!: string;
+
+  @IsOptional()
+  @IsString()
+  base64?: string;
+}
+
 export class SendMessageDto {
   @IsString()
   content!: string;
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentDto)
+  attachments?: AttachmentDto[];
 
   @IsOptional()
   @ValidateNested()
@@ -93,4 +116,28 @@ export class CreateConversationDto {
   @IsOptional()
   @IsString()
   title?: string;
+}
+
+export class VoiceMessageDto {
+  @IsString()
+  audio!: string;
+
+  @IsOptional()
+  @IsString()
+  transcriptionModel?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LlmSettingsDto)
+  llmSettings?: LlmSettingsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ErpSettingsDto)
+  erpSettings?: ErpSettingsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RagSettingsDto)
+  ragSettings?: RagSettingsDto;
 }
