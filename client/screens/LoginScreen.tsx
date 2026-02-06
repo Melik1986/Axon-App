@@ -109,7 +109,9 @@ export default function LoginScreen() {
     setIsSigningIn(true);
     try {
       const baseUrl = getApiUrl();
-      const response = await fetch(`${baseUrl}api/auth/dev-login`, {
+      const fullUrl = `${baseUrl}api/auth/dev-login`;
+
+      const response = await fetch(fullUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: "dev@axon.local", name: "Dev User" }),

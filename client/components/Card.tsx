@@ -44,8 +44,6 @@ const getBackgroundColorForElevation = (
   }
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 export function Card({
   elevation = 1,
   title,
@@ -72,10 +70,7 @@ export function Card({
   };
 
   return (
-    <AnimatedPressable
-      onPress={onPress}
-      onPressIn={handlePressIn}
-      onPressOut={handlePressOut}
+    <Animated.View
       style={[
         styles.card,
         {
@@ -85,18 +80,25 @@ export function Card({
         style,
       ]}
     >
-      {title ? (
-        <ThemedText type="h4" style={styles.cardTitle}>
-          {title}
-        </ThemedText>
-      ) : null}
-      {description ? (
-        <ThemedText type="small" style={styles.cardDescription}>
-          {description}
-        </ThemedText>
-      ) : null}
-      {children}
-    </AnimatedPressable>
+      <Pressable
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={styles.pressable}
+      >
+        {title ? (
+          <ThemedText type="h4" style={styles.cardTitle}>
+            {title}
+          </ThemedText>
+        ) : null}
+        {description ? (
+          <ThemedText type="small" style={styles.cardDescription}>
+            {description}
+          </ThemedText>
+        ) : null}
+        {children}
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -104,6 +106,9 @@ const styles = StyleSheet.create({
   card: {
     padding: Spacing.xl,
     borderRadius: BorderRadius["2xl"],
+  },
+  pressable: {
+    width: "100%",
   },
   cardTitle: {
     marginBottom: Spacing.sm,

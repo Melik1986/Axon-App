@@ -19,7 +19,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.axon.mobile"
+      "package": "com.axon.mobile",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "single",
@@ -53,11 +54,13 @@
         }
       ],
       [
-        "expo-av",
+        "expo-audio",
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to access your microphone for voice commands."
         }
-      ]
+      ],
+      "expo-sqlite",
+      "expo-secure-store"
     ],
     "experiments": {
       "reactCompiler": true

@@ -1,5 +1,12 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, Pressable } from "react-native";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  Pressable,
+  ActivityIndicator,
+} from "react-native";
+import * as Linking from "expo-linking";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useNavigation } from "@react-navigation/native";
@@ -9,8 +16,11 @@ import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { AnimatedCheckIcon } from "@/components/AnimatedIcons";
 import { useSettingsStore } from "@/store/settingsStore";
+import type { ERPProvider } from "@/store/settingsStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
+import { useBiometricAuth } from "@/hooks/useBiometricAuth";
+import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { TranslationKey } from "@/i18n/translations";
 import { Spacing, BorderRadius } from "@/constants/theme";
 
@@ -22,9 +32,12 @@ export default function ERPSettingsScreen() {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { t } = useTranslation();
+  const { isUnlocked, isAuthenticating, authenticate } = useBiometricAuth();
+  useProtectScreen();
 
   const { erp, setERPSettings } = useSettingsStore();
 
+  const [provider, setProvider] = useState<ERPProvider>(erp.provider);
   const [erpUrl, setErpUrl] = useState(erp.url);
   const [erpApiKey, setErpApiKey] = useState(erp.apiKey);
   const [specUrl, setSpecUrl] = useState(erp.specUrl);
@@ -42,6 +55,7 @@ export default function ERPSettingsScreen() {
 
   const handleSave = () => {
     setERPSettings({
+      provider,
       url: erpUrl,
       apiKey: erpApiKey,
       specUrl,
@@ -49,6 +63,45 @@ export default function ERPSettingsScreen() {
     });
     navigation.goBack();
   };
+
+  const providerDocsUrlByProvider: Partial<Record<ERPProvider, string>> = {
+    "1c": "https://kb.1ci.com/1C_Enterprise_Platform/FAQ/Development/Integration/Publishing_standard_REST_API_for_your_infobase/",
+  };
+
+  const selectedProviderDocsUrl = providerDocsUrlByProvider[provider];
+  const selectedProviderLabel = provider === "1c" ? "1C" : provider;
+
+  const handleOpenSelectedProviderDocs = async () => {
+    if (!selectedProviderDocsUrl) return;
+    await Linking.openURL(selectedProviderDocsUrl);
+  };
+
+  const isDemo = provider === "demo";
+
+  if (!isUnlocked) {
+    return (
+      <View
+        style={[
+          styles.container,
+          styles.loadingContainer,
+          { backgroundColor: theme.backgroundRoot },
+        ]}
+      >
+        {isAuthenticating ? (
+          <ActivityIndicator size="large" color={theme.primary} />
+        ) : (
+          <View style={{ alignItems: "center", padding: Spacing.xl }}>
+            <ThemedText
+              style={{ marginBottom: Spacing.lg, textAlign: "center" }}
+            >
+              Доступ заблокирован. Требуется подтверждение личности.
+            </ThemedText>
+            <Button onPress={authenticate}>Попробовать снова</Button>
+          </View>
+        )}
+      </View>
+    );
+  }
 
   return (
     <KeyboardAwareScrollView
@@ -63,11 +116,95 @@ export default function ERPSettingsScreen() {
       bottomOffset={20}
     >
       <View style={styles.section}>
-        <ThemedText
-          style={[styles.sectionDescription, { color: theme.textSecondary }]}
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.warning + "10",
+              borderColor: theme.warning + "40",
+            },
+          ]}
         >
-          {t("connectERP")}
-        </ThemedText>
+          <ThemedText style={[styles.hintText, { color: theme.warning }]}>
+            ⚠️ {t("secretsWarningTitle")}
+          </ThemedText>
+          <ThemedText
+            style={[
+              styles.hintText,
+              { color: theme.textSecondary, marginTop: Spacing.xs },
+            ]}
+          >
+            {t("secretsWarningBody")}
+          </ThemedText>
+        </View>
+
+        <View
+          style={[
+            styles.hintCard,
+            {
+              backgroundColor: theme.primary + "10",
+              borderColor: theme.primary + "30",
+            },
+          ]}
+        >
+          <ThemedText style={[styles.hintText, { color: theme.textSecondary }]}>
+            💡 {t("erpHint")}
+          </ThemedText>
+        </View>
+
+        {selectedProviderDocsUrl ? (
+          <Pressable
+            onPress={handleOpenSelectedProviderDocs}
+            style={styles.docsLinkRow}
+          >
+            <ThemedText style={[styles.docsLinkText, { color: theme.link }]}>
+              {t("apiKeyDocs")}: {selectedProviderLabel}
+            </ThemedText>
+          </Pressable>
+        ) : null}
+
+        <View style={styles.inputGroup}>
+          <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
+            {t("mode")}
+          </ThemedText>
+          <View style={styles.row}>
+            <Pressable
+              style={[
+                styles.segmentOption,
+                {
+                  backgroundColor: isDemo
+                    ? theme.primary
+                    : theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => setProvider("demo")}
+            >
+              <ThemedText style={{ color: isDemo ? "#fff" : theme.text }}>
+                Demo
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.segmentOption,
+                {
+                  backgroundColor: !isDemo
+                    ? theme.primary
+                    : theme.backgroundDefault,
+                  borderColor: theme.border,
+                },
+              ]}
+              onPress={() => setProvider("1c")}
+            >
+              <ThemedText style={{ color: !isDemo ? "#fff" : theme.text }}>
+                1C / Connect
+              </ThemedText>
+            </Pressable>
+          </View>
+          <ThemedText style={[styles.hint, { color: theme.textSecondary }]}>
+            {isDemo ? t("erpModeHintDemo") : t("erpModeHint1c")}
+          </ThemedText>
+        </View>
 
         <View style={styles.inputGroup}>
           <ThemedText style={[styles.inputLabel, { color: theme.text }]}>
@@ -207,6 +344,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  loadingContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+  },
   content: {
     paddingHorizontal: Spacing.lg,
   },
@@ -227,10 +368,45 @@ const styles = StyleSheet.create({
   inputGroup: {
     marginBottom: Spacing.lg,
   },
+  hintCard: {
+    padding: Spacing.md,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+  },
+  hintText: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  docsLinkRow: {
+    marginBottom: Spacing.lg,
+  },
+  docsLinkText: {
+    fontSize: 14,
+    fontWeight: "500",
+    textDecorationLine: "underline",
+  },
   inputLabel: {
     fontSize: 14,
     fontWeight: "500",
     marginBottom: Spacing.sm,
+  },
+  row: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  segmentOption: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    alignItems: "center",
+  },
+  hint: {
+    fontSize: 12,
+    marginTop: 4,
   },
   textInput: {
     borderRadius: BorderRadius.md,

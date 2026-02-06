@@ -4,13 +4,10 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withRepeat,
-  withSequence,
-  withTiming,
   WithSpringConfig,
 } from "react-native-reanimated";
 
-import { AnimatedMicIcon, AnimatedStopIcon } from "@/components/AnimatedIcons";
+import { AnimatedMicIcon, AnimatedStopIcon } from "./AnimatedIcons";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing } from "@/constants/theme";
 
@@ -18,6 +15,7 @@ interface VoiceButtonProps {
   isRecording: boolean;
   onPress: () => void;
   disabled?: boolean;
+  size?: number;
 }
 
 const springConfig: WithSpringConfig = {
@@ -26,39 +24,17 @@ const springConfig: WithSpringConfig = {
   stiffness: 150,
 };
 
-const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
-
 export function VoiceButton({
   isRecording,
   onPress,
   disabled,
+  size = Spacing.fabSize,
 }: VoiceButtonProps) {
   const { theme } = useTheme();
   const scale = useSharedValue(1);
-  const pulseScale = useSharedValue(1);
-
-  React.useEffect(() => {
-    if (isRecording) {
-      pulseScale.value = withRepeat(
-        withSequence(
-          withTiming(1.3, { duration: 600 }),
-          withTiming(1, { duration: 600 }),
-        ),
-        -1,
-        true,
-      );
-    } else {
-      pulseScale.value = withTiming(1, { duration: 200 });
-    }
-  }, [isRecording, pulseScale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
-  }));
-
-  const pulseStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: pulseScale.value }],
-    opacity: isRecording ? 0.4 : 0,
   }));
 
   const handlePressIn = () => {
@@ -74,28 +50,37 @@ export function VoiceButton({
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { width: size, height: size }]}>
       <Animated.View
-        style={[styles.pulse, { backgroundColor: theme.primary }, pulseStyle]}
-      />
-      <AnimatedPressable
-        onPress={onPress}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        disabled={disabled}
         style={[
           styles.button,
+          { width: size, height: size, borderRadius: size / 2 },
           animatedStyle,
           disabled && styles.disabled,
-          isRecording && { backgroundColor: theme.error + "15" },
+          {
+            backgroundColor: isRecording ? theme.error : theme.primary,
+            shadowColor: isRecording ? theme.error : theme.primary,
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            elevation: 8,
+          },
         ]}
       >
-        {isRecording ? (
-          <AnimatedStopIcon size={28} color={theme.error} />
-        ) : (
-          <AnimatedMicIcon size={28} color={theme.primary} />
-        )}
-      </AnimatedPressable>
+        <Pressable
+          style={styles.pressable}
+          onPress={onPress}
+          onPressIn={handlePressIn}
+          onPressOut={handlePressOut}
+          disabled={disabled}
+        >
+          {isRecording ? (
+            <AnimatedStopIcon size={size * 0.5} color="#fff" />
+          ) : (
+            <AnimatedMicIcon size={size * 0.5} color="#fff" />
+          )}
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
@@ -105,19 +90,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  pulse: {
-    position: "absolute",
-    width: Spacing.fabSize + 24,
-    height: Spacing.fabSize + 24,
-    borderRadius: (Spacing.fabSize + 24) / 2,
-  },
   button: {
-    width: Spacing.fabSize,
-    height: Spacing.fabSize,
-    borderRadius: Spacing.fabSize / 2,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "transparent",
+  },
+  pressable: {
+    width: "100%",
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
   disabled: {
     opacity: 0.5,

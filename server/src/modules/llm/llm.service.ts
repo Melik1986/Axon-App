@@ -7,7 +7,7 @@ import { LlmProvider, LlmSettings, ProviderConfig } from "./llm.types";
 export class LlmService {
   private providerConfigs: Record<LlmProvider, ProviderConfig>;
 
-  constructor(private configService: ConfigService) {
+  constructor(private readonly configService: ConfigService) {
     this.providerConfigs = {
       replit: {
         baseUrl:
@@ -44,6 +44,36 @@ export class LlmService {
     };
   }
 
+  /** Allowed hosts per provider (for validation before request). */
+  private static readonly PROVIDER_HOSTS: Record<
+    Exclude<LlmProvider, "replit" | "custom">,
+    string[]
+  > = {
+    openai: ["api.openai.com"],
+    groq: ["api.groq.com"],
+    ollama: ["localhost", "127.0.0.1"],
+  };
+
+  private validateProviderBaseUrl(settings: LlmSettings): void {
+    if (!settings.baseUrl) return;
+    const provider = settings.provider;
+    if (provider === "replit" || provider === "custom") return;
+    const allowed = LlmService.PROVIDER_HOSTS[provider];
+    if (!allowed) return;
+    try {
+      const host = new URL(settings.baseUrl).hostname.toLowerCase();
+      if (!allowed.some((h) => host === h || host.endsWith(`.${h}`))) {
+        throw new Error(
+          `Provider ${provider} requires baseURL host ${allowed.join(" or ")}; got ${host}`,
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && err.message.startsWith("Provider "))
+        throw err;
+      throw new Error(`Invalid baseURL for provider ${provider}`);
+    }
+  }
+
   private getProviderConfig(settings: LlmSettings): ProviderConfig {
     const baseConfig = this.providerConfigs[settings.provider];
 
@@ -55,6 +85,8 @@ export class LlmService {
       throw new Error(`Provider ${settings.provider} is not available`);
     }
 
+    this.validateProviderBaseUrl(settings);
+
     return {
       baseUrl: settings.baseUrl || baseConfig.baseUrl,
       apiKey: settings.apiKey || baseConfig.apiKey,
@@ -65,15 +97,22 @@ export class LlmService {
 
   createClient(settings?: LlmSettings): OpenAI {
     if (!settings || settings.provider === "replit") {
+      const apiKey =
+        this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY") || "";
+      const baseURL =
+        this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL") ||
+        "https://api.openai.com/v1";
+      if (!apiKey) {
+        throw new Error("API key is required for provider: replit");
+      }
       return new OpenAI({
-        apiKey: this.configService.get("AI_INTEGRATIONS_OPENAI_API_KEY"),
-        baseURL: this.configService.get("AI_INTEGRATIONS_OPENAI_BASE_URL"),
+        apiKey,
+        baseURL,
       });
     }
 
     const config = this.getProviderConfig(settings);
 
-    // Replit and Ollama don't require API key
     if (!config.apiKey && settings.provider !== "ollama") {
       throw new Error(`API key is required for provider: ${settings.provider}`);
     }

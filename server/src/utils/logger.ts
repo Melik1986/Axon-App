@@ -1,6 +1,8 @@
 /**
- * Интерфейс для ошибок Supabase
+ * Interface for Supabase errors
  */
+import { sanitizeForLogging } from "./logger-sanitizer";
+
 interface SupabaseError {
   message?: string;
   details?: string;
@@ -9,7 +11,7 @@ interface SupabaseError {
 }
 
 /**
- * Уровни логирования
+ * Logging levels
  */
 export enum LogLevel {
   DEBUG = 0,
@@ -20,7 +22,7 @@ export enum LogLevel {
 }
 
 /**
- * Опции логирования
+ * Logging options
  */
 interface LogOptions {
   timestamp?: boolean;
@@ -29,31 +31,31 @@ interface LogOptions {
 }
 
 /**
- * Универсальная утилита для логирования в приложении (Server)
- * Расширенная версия с уровнями логирования и timestamps
+ * Universal utility for application logging (Server)
+ * Extended version with logging levels and timestamps
  */
 export class AppLogger {
-  // В Node.js используем process.env.NODE_ENV
+  // In Node.js use process.env.NODE_ENV
   private static isDevelopment = process.env.NODE_ENV !== "production";
   private static currentLevel: LogLevel =
     process.env.NODE_ENV !== "production" ? LogLevel.DEBUG : LogLevel.WARN;
 
   /**
-   * Установить уровень логирования
+   * Set logging level
    */
   static setLevel(level: LogLevel): void {
     this.currentLevel = level;
   }
 
   /**
-   * Получить текущий уровень логирования
+   * Get current logging level
    */
   static getLevel(): LogLevel {
     return this.currentLevel;
   }
 
   /**
-   * Форматирование сообщения с timestamp
+   * Message formatting with timestamp
    */
   private static formatMessage(
     level: string,
@@ -70,7 +72,7 @@ export class AppLogger {
   }
 
   /**
-   * Проверка, нужно ли логировать для текущего уровня
+   * Check if logging is needed for current level
    */
   private static shouldLog(level: LogLevel): boolean {
     return level >= this.currentLevel;
@@ -82,8 +84,9 @@ export class AppLogger {
         prefix,
         timestamp: true,
       });
+      const sanitized = data ? sanitizeForLogging(data) : "";
       // eslint-disable-next-line no-console
-      console.log(formatted, data || "");
+      console.log(formatted, sanitized);
     }
   }
 
@@ -96,32 +99,42 @@ export class AppLogger {
     });
 
     if (error) {
-      // Специальная обработка для ошибок Supabase
-      if (typeof error === "object" && error !== null) {
+      if (error instanceof Error) {
+        const sanitized = sanitizeForLogging({
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          cause: (error as { cause?: unknown }).cause,
+        });
+        // eslint-disable-next-line no-console
+        console.error(formatted, sanitized);
+      } else if (typeof error === "object" && error !== null) {
         const supabaseError = error as SupabaseError;
         if (
           supabaseError.message ||
           supabaseError.details ||
           supabaseError.hint
         ) {
-          // eslint-disable-next-line no-console
-          console.error(formatted, {
+          const sanitized = sanitizeForLogging({
             message: supabaseError.message,
             details: supabaseError.details,
             hint: supabaseError.hint,
             code: supabaseError.code,
-            originalError: error,
           });
-        } else if (Object.keys(error).length > 0) {
           // eslint-disable-next-line no-console
-          console.error(formatted, error);
+          console.error(formatted, sanitized);
+        } else if (Object.keys(error).length > 0) {
+          const sanitized = sanitizeForLogging(error);
+          // eslint-disable-next-line no-console
+          console.error(formatted, sanitized);
         } else {
           // eslint-disable-next-line no-console
-          console.error(formatted, "Empty error object:", error);
+          console.error(formatted, "Empty error object");
         }
       } else {
+        const sanitized = sanitizeForLogging(error);
         // eslint-disable-next-line no-console
-        console.error(formatted, error);
+        console.error(formatted, sanitized);
       }
     } else {
       // eslint-disable-next-line no-console
@@ -136,8 +149,9 @@ export class AppLogger {
       prefix,
       timestamp: true,
     });
+    const sanitized = data ? sanitizeForLogging(data) : "";
     // eslint-disable-next-line no-console
-    console.warn(formatted, data || "");
+    console.warn(formatted, sanitized);
   }
 
   static info(message: string, data?: unknown, prefix?: string): void {
@@ -147,8 +161,9 @@ export class AppLogger {
       prefix,
       timestamp: true,
     });
+    const sanitized = data ? sanitizeForLogging(data) : "";
     // eslint-disable-next-line no-console
-    console.info(formatted, data || "");
+    console.info(formatted, sanitized);
   }
 
   static debug(message: string, data?: unknown, prefix?: string): void {
@@ -158,12 +173,13 @@ export class AppLogger {
       prefix,
       timestamp: true,
     });
+    const sanitized = data ? sanitizeForLogging(data) : "";
     // eslint-disable-next-line no-console
-    console.debug(formatted, data || "");
+    console.debug(formatted, sanitized);
   }
 
   /**
-   * Группирование логов (для debugging)
+   * Group logs (for debugging)
    */
   static group(label: string): void {
     if (this.isDevelopment) {
@@ -180,7 +196,7 @@ export class AppLogger {
   }
 
   /**
-   * Таймер для замера производительности
+   * Timer for performance measurement
    */
   static time(label: string): void {
     if (this.isDevelopment) {
@@ -197,7 +213,7 @@ export class AppLogger {
   }
 
   /**
-   * Вывод таблицы (для debugging)
+   * Table output (for debugging)
    */
   static table(data: unknown): void {
     if (this.isDevelopment) {
