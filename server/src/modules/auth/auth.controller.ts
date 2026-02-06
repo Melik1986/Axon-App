@@ -58,25 +58,31 @@ export class AuthController {
       return res.redirect("/login?error=auth_failed");
     }
 
+    let clientRedirect: string | null = null;
     try {
-      JSON.parse(Buffer.from(state, "base64").toString());
+      const stateData = JSON.parse(Buffer.from(state, "base64").toString());
+      if (stateData.redirect) {
+        clientRedirect = stateData.redirect;
+      }
     } catch {
       // State parsing failed, use default redirect
     }
 
-    // Generate temporary code for secure token exchange
-    // This avoids passing tokens directly in URL (security best practice)
     const tempCode = this.authService.generateTempAuthCode(
       result.user,
       result.session,
     );
 
+    if (clientRedirect && (clientRedirect.startsWith("exp://") || clientRedirect.startsWith("axon://"))) {
+      const separator = clientRedirect.includes("?") ? "&" : "?";
+      return res.redirect(`${clientRedirect}${separator}code=${tempCode}`);
+    }
+
     const baseUrl = process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
       : "";
 
-    // Redirect with temporary code only - tokens exchanged via POST
-    const appRedirectUrl = new URL("/auth/success", baseUrl);
+    const appRedirectUrl = new URL(clientRedirect || "/auth/success", baseUrl);
     appRedirectUrl.searchParams.set("code", tempCode);
 
     res.redirect(appRedirectUrl.toString());
