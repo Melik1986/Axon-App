@@ -8,7 +8,7 @@ import { SandboxExecutorService } from "./sandbox-executor.service";
 export class SkillService {
   constructor(
     @Inject(DATABASE_CONNECTION) private db: Database,
-    private sandbox: SandboxExecutorService,
+    @Inject(SandboxExecutorService) private sandbox: SandboxExecutorService,
   ) {}
 
   async getSkills(userId: string): Promise<Skill[]> {

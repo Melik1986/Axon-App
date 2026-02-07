@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Inject,
   NestInterceptor,
   ExecutionContext,
   CallHandler,
@@ -29,7 +30,10 @@ interface ExtendedRequest extends Request {
 
 @Injectable()
 export class JweDecryptionInterceptor implements NestInterceptor {
-  constructor(private tokenExchangeService: TokenExchangeService) {}
+  constructor(
+    @Inject(TokenExchangeService)
+    private tokenExchangeService: TokenExchangeService,
+  ) {}
 
   async intercept(
     context: ExecutionContext,

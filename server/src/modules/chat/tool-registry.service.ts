@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { dynamicTool, jsonSchema, type Tool } from "ai";
 import {
   McpHostService,
@@ -16,12 +16,13 @@ import { GuardianGuard } from "../../guards/guardian.guard";
 export class ToolRegistryService {
   private readonly emptySchema = jsonSchema({ type: "object" });
   constructor(
-    private mcpHost: McpHostService,
+    @Inject(McpHostService) private mcpHost: McpHostService,
+    @Inject(OpenApiToolGeneratorService)
     private openApiGenerator: OpenApiToolGeneratorService,
-    private erpService: ErpService,
-    private rulebook: RulebookService,
-    private skillService: SkillService,
-    private guardian: GuardianGuard,
+    @Inject(ErpService) private erpService: ErpService,
+    @Inject(RulebookService) private rulebook: RulebookService,
+    @Inject(SkillService) private skillService: SkillService,
+    @Inject(GuardianGuard) private guardian: GuardianGuard,
   ) {}
 
   /**

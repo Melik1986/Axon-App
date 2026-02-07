@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Inject,
   UseGuards,
   Req,
 } from "@nestjs/common";
@@ -17,7 +18,7 @@ import type { InsertSkill } from "@shared/schema";
 @Controller("skills")
 @UseGuards(AuthGuard)
 export class SkillController {
-  constructor(private skillService: SkillService) {}
+  constructor(@Inject(SkillService) private skillService: SkillService) {}
 
   @Get()
   async getSkills(@Req() req: AuthenticatedRequest) {

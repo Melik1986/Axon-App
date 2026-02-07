@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { Response } from "express";
 import {
   streamText,
@@ -86,15 +86,18 @@ export class ChatService {
   // Server only processes requests without state
 
   constructor(
-    private llmService: LlmService,
-    private ragService: RagService,
-    private erpService: ErpService,
+    @Inject(LlmService) private llmService: LlmService,
+    @Inject(RagService) private ragService: RagService,
+    @Inject(ErpService) private erpService: ErpService,
+    @Inject(EphemeralClientPoolService)
     private ephemeralClientPool: EphemeralClientPoolService,
+    @Inject(PromptInjectionGuard)
     private promptInjectionGuard: PromptInjectionGuard,
-    private toolRegistry: ToolRegistryService,
+    @Inject(ToolRegistryService) private toolRegistry: ToolRegistryService,
+    @Inject(ConfidenceScorerService)
     private confidenceScorer: ConfidenceScorerService,
-    private coveWorkflow: CoveWorkflowService,
-    private guardian: GuardianGuard,
+    @Inject(CoveWorkflowService) private coveWorkflow: CoveWorkflowService,
+    @Inject(GuardianGuard) private guardian: GuardianGuard,
   ) {}
 
   // Stateless stubs: client stores conversations/messages locally

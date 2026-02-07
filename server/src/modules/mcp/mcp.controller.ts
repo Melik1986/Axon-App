@@ -5,6 +5,7 @@ import {
   Delete,
   Body,
   Param,
+  Inject,
   UseGuards,
   HttpCode,
   HttpStatus,
@@ -41,8 +42,8 @@ interface ConnectServerDto {
 @UseGuards(AuthGuard)
 export class McpController {
   constructor(
-    private readonly mcpHost: McpHostService,
-    private readonly mcpBridge: McpBridgeService,
+    @Inject(McpHostService) private readonly mcpHost: McpHostService,
+    @Inject(McpBridgeService) private readonly mcpBridge: McpBridgeService,
   ) {}
 
   /**

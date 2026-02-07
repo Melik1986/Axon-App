@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Inject } from "@nestjs/common";
 import { RulebookService } from "../modules/rules/rulebook.service";
 import { ValidationService } from "../services/validation.service";
 
@@ -11,8 +11,8 @@ export interface GuardianCheckResult {
 @Injectable()
 export class GuardianGuard {
   constructor(
-    private rulebook: RulebookService,
-    private validationService: ValidationService,
+    @Inject(RulebookService) private rulebook: RulebookService,
+    @Inject(ValidationService) private validationService: ValidationService,
   ) {}
 
   /**

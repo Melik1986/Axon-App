@@ -30,6 +30,7 @@ import { AgentVisualizer, AgentState } from "@/components/AgentVisualizer";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
 import type { ToolCall, Attachment } from "@shared/types";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useAuthStore } from "@/store/authStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useVoice } from "@/hooks/useVoice";
@@ -47,6 +48,7 @@ export default function ChatScreen() {
   const llmSettings = useSettingsStore((state) => state.llm);
   const erpSettings = useSettingsStore((state) => state.erp);
   const ragSettings = useSettingsStore((state) => state.rag);
+  const getAccessToken = useAuthStore((state) => state.getAccessToken);
 
   const [inputText, setInputText] = React.useState("");
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
@@ -76,9 +78,16 @@ export default function ChatScreen() {
   const createOrLoadConversation = React.useCallback(async () => {
     try {
       const baseUrl = getApiUrl();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      const token = getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(`${baseUrl}api/conversations`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ title: t("newChat") }),
       });
       const conversation = await response.json();
@@ -86,7 +95,7 @@ export default function ChatScreen() {
     } catch (error) {
       AppLogger.error("Failed to create conversation:", error);
     }
-  }, [t, setCurrentConversation]);
+  }, [t, setCurrentConversation, getAccessToken]);
 
   useEffect(() => {
     createOrLoadConversation();
@@ -120,11 +129,18 @@ export default function ChatScreen() {
 
     try {
       const baseUrl = getApiUrl();
+      const msgHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      const token = getAccessToken();
+      if (token) {
+        msgHeaders["Authorization"] = `Bearer ${token}`;
+      }
       const response = await fetch(
         `${baseUrl}api/conversations/${currentConversationId}/messages`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: msgHeaders,
           body: JSON.stringify({
             content: userMessage.content,
             attachments: userMessage.attachments,
@@ -206,7 +222,13 @@ export default function ChatScreen() {
       setStreaming(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inputText, attachments, currentConversationId, isStreaming]);
+  }, [
+    inputText,
+    attachments,
+    currentConversationId,
+    isStreaming,
+    getAccessToken,
+  ]);
 
   const handleVoicePress = async () => {
     if (isRecording) {
@@ -373,27 +395,16 @@ export default function ChatScreen() {
     }
   };
 
-  const renderEmptyState = () => {
-    const agentState: AgentState = isRecording
-      ? "listening"
-      : isStreaming
-        ? "speaking"
-        : "idle";
+  const agentState: AgentState = isRecording
+    ? "listening"
+    : isStreaming
+      ? "speaking"
+      : "idle";
 
+  const renderEmptyState = () => {
     return (
       <View style={styles.emptyContainer}>
-        <EmptyState
-          icon={
-            <AgentVisualizer
-              state={agentState}
-              size={160}
-              color={theme.primary}
-              volume={isRecording ? 0.6 : 0}
-            />
-          }
-          title={t("startConversation")}
-          subtitle={t("askJarvis")}
-        >
+        <EmptyState title={t("startConversation")} subtitle={t("askJarvis")}>
           <View style={styles.suggestions}>
             <Pressable
               style={({ pressed }) => [
@@ -484,6 +495,15 @@ export default function ChatScreen() {
       style={[styles.container, { backgroundColor: theme.backgroundRoot }]}
       keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
     >
+      <View style={styles.backgroundVisualizer} pointerEvents="none">
+        <AgentVisualizer
+          state={agentState}
+          size={200}
+          color={theme.primary}
+          volume={isRecording ? 0.6 : 0}
+        />
+      </View>
+
       <FlatList
         ref={flatListRef}
         style={styles.list}
@@ -631,8 +651,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  backgroundVisualizer: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 0,
+    opacity: 0.15,
+  },
   list: {
     flex: 1,
+    zIndex: 1,
   },
   listContent: {
     flexGrow: 1,

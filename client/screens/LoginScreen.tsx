@@ -10,6 +10,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   ScrollView,
+  Image,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as WebBrowser from "expo-web-browser";
@@ -252,7 +253,11 @@ export default function LoginScreen() {
                 { backgroundColor: colors.primary + "20" },
               ]}
             >
-              <Feather name="cpu" size={48} color={colors.primary} />
+              <Image
+                source={require("../../assets/images/icon.png")}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
             </View>
             <Text style={[styles.title, { color: colors.text }]}>AXON</Text>
             <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
@@ -425,6 +430,11 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
+  },
+  logoImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
   },
   logoContainer: {
     width: 100,

@@ -10,6 +10,7 @@ import {
   UseInterceptors,
   UseGuards,
   Req,
+  Inject,
   HttpException,
   HttpStatus,
 } from "@nestjs/common";
@@ -31,7 +32,7 @@ interface ExtendedRequest extends Request {
 @Controller("documents")
 @UseGuards(AuthGuard)
 export class RagController {
-  constructor(private readonly ragService: RagService) {}
+  constructor(@Inject(RagService) private readonly ragService: RagService) {}
 
   @Get()
   async listDocuments(): Promise<DocumentMetadata[]> {

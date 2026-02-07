@@ -12,9 +12,17 @@ import { RagModule } from "../rag/rag.module";
 import { ErpModule } from "../erp/erp.module";
 import { AuthModule } from "../auth/auth.module";
 import { RulebookModule } from "../rules/rulebook.module";
+import { SkillsModule } from "../skills/skill.module";
 
 @Module({
-  imports: [LlmModule, RagModule, ErpModule, AuthModule, RulebookModule],
+  imports: [
+    LlmModule,
+    RagModule,
+    ErpModule,
+    AuthModule,
+    RulebookModule,
+    SkillsModule,
+  ],
   controllers: [ChatController, VoiceController, ConductorController],
   providers: [
     ChatService,

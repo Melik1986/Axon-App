@@ -6,6 +6,7 @@ import {
   Delete,
   Body,
   Param,
+  Inject,
   UseGuards,
   Req,
 } from "@nestjs/common";
@@ -17,7 +18,9 @@ import type { InsertRule } from "@shared/schema";
 @Controller("rules")
 @UseGuards(AuthGuard)
 export class RulebookController {
-  constructor(private rulebookService: RulebookService) {}
+  constructor(
+    @Inject(RulebookService) private rulebookService: RulebookService,
+  ) {}
 
   @Get()
   async getRules(@Req() req: AuthenticatedRequest) {
