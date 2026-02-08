@@ -122,6 +122,10 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Increase body-parser limits for voice messages (base64 audio)
+  app.use(express.json({ limit: "50mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+
   // Global exception filter for LLM provider errors (user-friendly messages)
   app.useGlobalFilters(new LlmProviderExceptionFilter());
 
@@ -162,11 +166,7 @@ async function bootstrap() {
   }
 
   // Landing page and Expo manifest routing
-  const templatePath = path.resolve(
-    process.cwd(),
-    "web",
-    "index.html",
-  );
+  const templatePath = path.resolve(process.cwd(), "web", "index.html");
   const appName = getAppName();
 
   AppLogger.info("Serving static Expo files with dynamic manifest routing");

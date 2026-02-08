@@ -18,7 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system";
+import * as FileSystem from "expo-file-system/legacy";
 import { Image } from "expo-image";
 import ImageViewerCompat from "@/components/ImageViewerCompat";
 
@@ -254,7 +254,7 @@ export default function ChatScreen() {
   const handleCamera = async () => {
     try {
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         allowsEditing: false,
         quality: 0.8,
         base64: true,
@@ -278,7 +278,7 @@ export default function ChatScreen() {
   const handleImageLibrary = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ["images"],
         allowsEditing: false,
         quality: 0.8,
         base64: true,
@@ -653,8 +653,9 @@ const styles = StyleSheet.create({
   },
   backgroundVisualizer: {
     ...StyleSheet.absoluteFillObject,
-    justifyContent: "center",
+    justifyContent: "flex-start",
     alignItems: "center",
+    paddingTop: "20%",
     zIndex: 0,
     opacity: 0.15,
   },
