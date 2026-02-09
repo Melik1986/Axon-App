@@ -27,7 +27,26 @@ interface AuthenticatedRequest extends Request {
 @ApiTags("auth")
 @Controller("auth")
 export class AuthController {
+  /** Allowed deep-link schemes for mobile OAuth redirect */
+  private readonly ALLOWED_SCHEMES = ["exp://", "axon://"];
+
   constructor(@Inject(AuthService) private readonly authService: AuthService) {}
+
+  /**
+   * Validate redirect URL against allowlist.
+   * Allows: relative paths (/...), allowed deep-link schemes, same-origin URLs.
+   * Blocks: arbitrary http(s) URLs to external domains (open redirect).
+   */
+  private isSafeRedirect(url: string): boolean {
+    // Relative paths are always safe
+    if (url.startsWith("/")) return true;
+
+    // Allowed mobile deep-link schemes
+    if (this.ALLOWED_SCHEMES.some((s) => url.startsWith(s))) return true;
+
+    // Block everything else (http://, https://, javascript:, data:, etc.)
+    return false;
+  }
 
   @Get("login")
   async login(@Query("redirect") redirect: string, @Res() res: Response) {
@@ -45,10 +64,7 @@ export class AuthController {
     } catch (error) {
       AppLogger.error("Auth login error:", error);
       const errorRedirect = redirect || "/";
-      if (
-        errorRedirect.startsWith("exp://") ||
-        errorRedirect.startsWith("axon://")
-      ) {
+      if (this.isSafeRedirect(errorRedirect)) {
         const sep = errorRedirect.includes("?") ? "&" : "?";
         return res.redirect(`${errorRedirect}${sep}error=auth_not_configured`);
       }
@@ -112,20 +128,28 @@ export class AuthController {
       result.session,
     );
 
+    // Validate redirect against allowlist to prevent open redirect
+    const safeRedirect =
+      clientRedirect && this.isSafeRedirect(clientRedirect)
+        ? clientRedirect
+        : null;
+
+    // Mobile deep-link redirect (exp://, axon://)
     if (
-      clientRedirect &&
-      (clientRedirect.startsWith("exp://") ||
-        clientRedirect.startsWith("axon://"))
+      safeRedirect &&
+      this.ALLOWED_SCHEMES.some((s) => safeRedirect.startsWith(s))
     ) {
-      const separator = clientRedirect.includes("?") ? "&" : "?";
-      return res.redirect(`${clientRedirect}${separator}code=${tempCode}`);
+      const separator = safeRedirect.includes("?") ? "&" : "?";
+      return res.redirect(`${safeRedirect}${separator}code=${tempCode}`);
     }
 
+    // Web redirect — only relative paths allowed
     const baseUrl = process.env.REPLIT_DEV_DOMAIN
       ? `https://${process.env.REPLIT_DEV_DOMAIN}`
       : "";
 
-    const appRedirectUrl = new URL(clientRedirect || "/auth/success", baseUrl);
+    const webPath = safeRedirect || "/auth/success";
+    const appRedirectUrl = new URL(webPath, baseUrl || "http://localhost");
     appRedirectUrl.searchParams.set("code", tempCode);
 
     res.redirect(appRedirectUrl.toString());

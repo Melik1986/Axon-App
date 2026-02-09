@@ -380,22 +380,38 @@ async function downloadAssets(assets, timestamp) {
     }
 
     const decodedPath = decodeURIComponent(unstablePath);
+
+    // Sanitize: strip path traversal sequences
+    const safeDecode = path.posix
+      .normalize(decodedPath)
+      .replace(/^(\.\.(\/|\\))+/, "");
+    const safeRelPath = path
+      .normalize(asset.relativePath || "")
+      .replace(/^(\.\.(\/|\\))+/, "");
+    const safeFilename = path.basename(asset.filename);
+
     const metroUrl = new URL(
-      `http://localhost:8081${path.posix.join("/assets", decodedPath, asset.filename)}`,
+      `http://localhost:8081${path.posix.join("/assets", safeDecode, safeFilename)}`,
     );
     metroUrl.searchParams.set("platform", platform);
     metroUrl.searchParams.set("hash", asset.hash);
 
-    const outputDir = path.join(
-      "static-build",
-      timestamp,
+    const buildRoot = path.resolve("static-build", timestamp);
+    const outputDir = path.resolve(
+      buildRoot,
       "_expo",
       "static",
       "js",
-      asset.relativePath,
+      safeRelPath,
     );
+
+    // Ensure resolved path stays inside build root
+    if (!outputDir.startsWith(buildRoot)) {
+      throw new Error(`Path traversal blocked: ${asset.relativePath}`);
+    }
+
     fs.mkdirSync(outputDir, { recursive: true });
-    const output = path.join(outputDir, asset.filename);
+    const output = path.join(outputDir, safeFilename);
 
     try {
       await downloadFile(metroUrl.toString(), output);
