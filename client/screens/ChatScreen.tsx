@@ -142,6 +142,7 @@ export default function ChatScreen() {
             condition: r.condition,
             action: r.action,
             message: r.message,
+            content: r.content,
             priority: r.priority,
           })),
           skills: enabledSkills.map((s) => ({
@@ -149,6 +150,7 @@ export default function ChatScreen() {
             name: s.name,
             description: s.description,
             code: s.code,
+            content: s.content,
             inputSchema: s.inputSchema,
             outputSchema: s.outputSchema,
           })),

@@ -14,6 +14,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
@@ -50,6 +52,7 @@ export default function RulebookScreen() {
     "reject" | "warn" | "require_confirmation"
   >("reject");
   const [message, setMessage] = useState("Quantity cannot be negative");
+  const [content, setContent] = useState("");
 
   const fetchData = async () => {
     await loadRules();
@@ -72,17 +75,63 @@ export default function RulebookScreen() {
     deleteRule: storeDeleteRule,
   } = useRulesStore();
 
+  const handleUploadMd = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["text/markdown", "text/plain", "application/octet-stream"],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      if (!asset) return;
+
+      const text = await FileSystem.readAsStringAsync(asset.uri);
+      const fileName = (asset.name ?? "rule").replace(/\.[^.]+$/, "");
+
+      // Extract first heading or first line as description
+      const headingMatch = text.match(/^#\s+(.+)/m);
+      const firstLine = headingMatch?.[1] ?? text.split("\n")[0] ?? "";
+
+      setName(fileName);
+      setDescription(firstLine.slice(0, 120));
+      setCondition("{}");
+      setAction("warn");
+      setMessage("");
+      setContent(text);
+      setIsAdding(true);
+    } catch (error) {
+      AppLogger.error("Failed to pick MD file:", error);
+    }
+  };
+
+  const resetForm = () => {
+    setIsAdding(false);
+    setName("");
+    setDescription("");
+    setContent("");
+    setCondition(
+      '{"tool": "create_invoice", "field": "quantity", "operator": "<", "value": 0}',
+    );
+    setAction("reject");
+    setMessage("Quantity cannot be negative");
+  };
+
   const handleAddRule = async () => {
-    if (!name || !condition) {
+    if (!name || (!condition && !content)) {
       Alert.alert(t("error"), t("configurationRequired"));
       return;
     }
 
     try {
-      await storeCreateRule({ name, description, condition, action, message });
-      setIsAdding(false);
-      setName("");
-      setDescription("");
+      await storeCreateRule({
+        name,
+        description,
+        condition: condition || "{}",
+        action,
+        message,
+        content: content || undefined,
+      });
+      resetForm();
     } catch (error) {
       AppLogger.error("Failed to add rule:", error);
       Alert.alert(t("error"), "Failed to save rule");
@@ -135,13 +184,31 @@ export default function RulebookScreen() {
         </View>
 
         {!isAdding ? (
-          <Button
-            onPress={() => setIsAdding(true)}
-            variant="outline"
-            style={styles.addBtn}
-          >
-            {t("addNewRule")}
-          </Button>
+          <View style={styles.addRow}>
+            <Button
+              onPress={() => setIsAdding(true)}
+              variant="outline"
+              style={{ flex: 1 }}
+            >
+              {t("addNewRule")}
+            </Button>
+            <Pressable
+              onPress={handleUploadMd}
+              style={[
+                styles.uploadBtn,
+                { backgroundColor: theme.backgroundSecondary },
+              ]}
+            >
+              <Ionicons
+                name="document-attach"
+                size={20}
+                color={theme.primary}
+              />
+              <ThemedText style={{ fontSize: 12, color: theme.primary }}>
+                .md
+              </ThemedText>
+            </Pressable>
+          </View>
         ) : (
           <View
             style={[
@@ -227,8 +294,26 @@ export default function RulebookScreen() {
               onChangeText={setCondition}
             />
 
+            {content ? (
+              <>
+                <ThemedText style={styles.label}>
+                  MD Content ({content.length} chars)
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.contentArea,
+                    { color: theme.text, borderColor: theme.border },
+                  ]}
+                  multiline
+                  value={content}
+                  onChangeText={setContent}
+                />
+              </>
+            ) : null}
+
             <View style={styles.formRow}>
-              <Button onPress={() => setIsAdding(false)} variant="outline">
+              <Button onPress={resetForm} variant="outline">
                 {t("cancel")}
               </Button>
               <Button onPress={handleAddRule}>{t("saveRule")}</Button>
@@ -269,24 +354,42 @@ export default function RulebookScreen() {
                 </View>
 
                 <View style={styles.ruleMeta}>
-                  <View
-                    style={[
-                      styles.badge,
-                      {
-                        backgroundColor:
-                          rule.action === "reject" ? "#fee2e2" : "#fef3c7",
-                      },
-                    ]}
-                  >
-                    <ThemedText
-                      style={{
-                        color: rule.action === "reject" ? "#991b1b" : "#92400e",
-                        fontSize: 12,
-                        fontWeight: "bold",
-                      }}
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <View
+                      style={[
+                        styles.badge,
+                        {
+                          backgroundColor:
+                            rule.action === "reject" ? "#fee2e2" : "#fef3c7",
+                        },
+                      ]}
                     >
-                      {rule.action.toUpperCase()}
-                    </ThemedText>
+                      <ThemedText
+                        style={{
+                          color:
+                            rule.action === "reject" ? "#991b1b" : "#92400e",
+                          fontSize: 12,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        {rule.action.toUpperCase()}
+                      </ThemedText>
+                    </View>
+                    {rule.content ? (
+                      <View
+                        style={[styles.badge, { backgroundColor: "#dbeafe" }]}
+                      >
+                        <ThemedText
+                          style={{
+                            color: "#1e40af",
+                            fontSize: 10,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          MD
+                        </ThemedText>
+                      </View>
+                    ) : null}
                   </View>
                   <Pressable onPress={() => deleteRule(rule.id)}>
                     <Ionicons
@@ -385,9 +488,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
-  addBtn: {
+  addRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
+    alignItems: "center",
+  },
+  uploadBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.md,
   },
   form: {
     margin: Spacing.lg,
@@ -425,6 +539,12 @@ const styles = StyleSheet.create({
     height: 80,
     textAlignVertical: "top",
     fontFamily: "monospace",
+  },
+  contentArea: {
+    height: 140,
+    textAlignVertical: "top",
+    fontFamily: "monospace",
+    fontSize: 12,
   },
   formRow: {
     flexDirection: "row",

@@ -177,6 +177,10 @@ export class ClientRuleDto {
   message?: string;
 
   @IsOptional()
+  @IsString()
+  content?: string;
+
+  @IsOptional()
   @IsNumber()
   priority?: number;
 }
@@ -194,6 +198,10 @@ export class ClientSkillDto {
 
   @IsString()
   code!: string;
+
+  @IsOptional()
+  @IsString()
+  content?: string;
 
   @IsOptional()
   @IsString()

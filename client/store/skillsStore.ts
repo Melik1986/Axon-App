@@ -11,6 +11,7 @@ interface SkillsState {
     name: string;
     description?: string;
     code: string;
+    content?: string;
     inputSchema?: string;
     outputSchema?: string;
   }) => Promise<LocalSkill>;
@@ -22,6 +23,7 @@ interface SkillsState {
         | "name"
         | "description"
         | "code"
+        | "content"
         | "inputSchema"
         | "outputSchema"
         | "enabled"

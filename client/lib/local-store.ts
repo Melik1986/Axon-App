@@ -29,6 +29,7 @@ export interface LocalRule {
   condition: string;
   action: string;
   message: string | null;
+  content: string | null; // MD instruction body
   priority: number;
   enabled: number; // SQLite boolean: 0 | 1
   createdAt: number;
@@ -39,6 +40,7 @@ export interface LocalSkill {
   name: string;
   description: string | null;
   code: string;
+  content: string | null; // MD instruction body
   inputSchema: string | null;
   outputSchema: string | null;
   enabled: number; // SQLite boolean: 0 | 1
@@ -104,6 +106,19 @@ class LocalStore {
         CREATE INDEX IF NOT EXISTS idx_messages_conversation
           ON messages(conversation_id);
       `);
+
+      // Migrations: add content column to rules & skills (idempotent)
+      try {
+        await this.db.execAsync(`ALTER TABLE rules ADD COLUMN content TEXT;`);
+      } catch {
+        /* column already exists */
+      }
+      try {
+        await this.db.execAsync(`ALTER TABLE skills ADD COLUMN content TEXT;`);
+      } catch {
+        /* column already exists */
+      }
+
       AppLogger.info("LocalStore initialized", undefined, "LocalStore");
     } catch (error) {
       AppLogger.error("Failed to init LocalStore", error, "LocalStore");
@@ -218,6 +233,7 @@ class LocalStore {
     condition: string;
     action: string;
     message?: string;
+    content?: string;
     priority?: number;
   }): Promise<LocalRule> {
     const db = await this.ensureDb();
@@ -228,13 +244,14 @@ class LocalStore {
       condition: rule.condition,
       action: rule.action,
       message: rule.message ?? null,
+      content: rule.content ?? null,
       priority: rule.priority ?? 0,
       enabled: 1,
       createdAt: Date.now(),
     };
     await db.runAsync(
-      `INSERT INTO rules (id, name, description, condition, action, message, priority, enabled, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO rules (id, name, description, condition, action, message, content, priority, enabled, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         r.id,
         r.name,
@@ -242,6 +259,7 @@ class LocalStore {
         r.condition,
         r.action,
         r.message,
+        r.content,
         r.priority,
         r.enabled,
         r.createdAt,
@@ -253,7 +271,7 @@ class LocalStore {
   async listRules(): Promise<LocalRule[]> {
     const db = await this.ensureDb();
     return db.getAllAsync<LocalRule>(
-      `SELECT id, name, description, condition, action, message, priority, enabled, created_at AS createdAt
+      `SELECT id, name, description, condition, action, message, content, priority, enabled, created_at AS createdAt
        FROM rules ORDER BY priority ASC, created_at DESC`,
     );
   }
@@ -268,6 +286,7 @@ class LocalStore {
         | "condition"
         | "action"
         | "message"
+        | "content"
         | "priority"
         | "enabled"
       >
@@ -297,7 +316,7 @@ class LocalStore {
   async getActiveRules(): Promise<LocalRule[]> {
     const db = await this.ensureDb();
     return db.getAllAsync<LocalRule>(
-      `SELECT id, name, description, condition, action, message, priority, enabled, created_at AS createdAt
+      `SELECT id, name, description, condition, action, message, content, priority, enabled, created_at AS createdAt
        FROM rules WHERE enabled = 1 ORDER BY priority ASC`,
     );
   }
@@ -307,6 +326,7 @@ class LocalStore {
     name: string;
     description?: string;
     code: string;
+    content?: string;
     inputSchema?: string;
     outputSchema?: string;
   }): Promise<LocalSkill> {
@@ -316,19 +336,21 @@ class LocalStore {
       name: skill.name,
       description: skill.description ?? null,
       code: skill.code,
+      content: skill.content ?? null,
       inputSchema: skill.inputSchema ?? null,
       outputSchema: skill.outputSchema ?? null,
       enabled: 1,
       createdAt: Date.now(),
     };
     await db.runAsync(
-      `INSERT INTO skills (id, name, description, code, input_schema, output_schema, enabled, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO skills (id, name, description, code, content, input_schema, output_schema, enabled, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         s.id,
         s.name,
         s.description,
         s.code,
+        s.content,
         s.inputSchema,
         s.outputSchema,
         s.enabled,
@@ -341,7 +363,7 @@ class LocalStore {
   async listSkills(): Promise<LocalSkill[]> {
     const db = await this.ensureDb();
     return db.getAllAsync<LocalSkill>(
-      `SELECT id, name, description, code, input_schema AS inputSchema, output_schema AS outputSchema, enabled, created_at AS createdAt
+      `SELECT id, name, description, code, content, input_schema AS inputSchema, output_schema AS outputSchema, enabled, created_at AS createdAt
        FROM skills ORDER BY created_at DESC`,
     );
   }
@@ -354,6 +376,7 @@ class LocalStore {
         | "name"
         | "description"
         | "code"
+        | "content"
         | "inputSchema"
         | "outputSchema"
         | "enabled"
@@ -391,7 +414,7 @@ class LocalStore {
   async getEnabledSkills(): Promise<LocalSkill[]> {
     const db = await this.ensureDb();
     return db.getAllAsync<LocalSkill>(
-      `SELECT id, name, description, code, input_schema AS inputSchema, output_schema AS outputSchema, enabled, created_at AS createdAt
+      `SELECT id, name, description, code, content, input_schema AS inputSchema, output_schema AS outputSchema, enabled, created_at AS createdAt
        FROM skills WHERE enabled = 1`,
     );
   }
