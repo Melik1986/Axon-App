@@ -316,6 +316,11 @@ export const translations = {
     promptInjection: "Prompt injection detected",
     contextTooLong:
       "Message too long — try removing attachments or shortening the conversation",
+    transcriptionModel: "Transcription Model",
+    transcriptionFailed:
+      "Voice transcription failed. Check Settings → LLM Provider → Transcription Model.",
+    transcriptionNotSupported:
+      "Your provider may not support audio transcription. Try OpenAI or Groq.",
   },
   ru: {
     appName: "AXON",
@@ -572,6 +577,11 @@ export const translations = {
     promptInjection: "Обнаружена инъекция промпта",
     contextTooLong:
       "Сообщение слишком длинное — попробуйте удалить вложения или сократить переписку",
+    transcriptionModel: "Модель транскрипции",
+    transcriptionFailed:
+      "Не удалось распознать голос. Проверьте Настройки → Провайдер LLM → Модель транскрипции.",
+    transcriptionNotSupported:
+      "Ваш провайдер может не поддерживать распознавание голоса. Попробуйте OpenAI или Groq.",
   },
   de: {
     // ... existing ...
@@ -800,6 +810,11 @@ export const translations = {
     tools: "tools",
     contextTooLong:
       "Nachricht zu lang — entfernen Sie Anhänge oder kürzen Sie das Gespräch",
+    transcriptionModel: "Transkriptionsmodell",
+    transcriptionFailed:
+      "Spracherkennung fehlgeschlagen. Überprüfen Sie Einstellungen → LLM-Anbieter → Transkriptionsmodell.",
+    transcriptionNotSupported:
+      "Ihr Anbieter unterstützt möglicherweise keine Audiotranskription. Versuchen Sie OpenAI oder Groq.",
   },
   // ... fr, es, zh same strategy ...
 };

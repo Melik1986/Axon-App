@@ -5,7 +5,7 @@ export interface LocalDocument {
   id: string;
   name: string;
   content: string;
-  embedding: number[];
+  embedding: number[] | null;
   metadata: Record<string, unknown>;
   createdAt: number;
 }
@@ -54,13 +54,81 @@ export class LocalVectorStore {
           doc.id,
           doc.name,
           doc.content,
-          JSON.stringify(doc.embedding),
+          JSON.stringify(doc.embedding ?? []),
           JSON.stringify(doc.metadata),
           doc.createdAt,
         ],
       );
     } catch (error) {
       AppLogger.error("Failed to add document to local store", error, "RAG");
+    }
+  }
+
+  async listAll(): Promise<LocalDocument[]> {
+    if (!this.db) await this.init();
+    try {
+      const rows = await this.db!.getAllAsync<LocalDocumentRow>(
+        "SELECT * FROM local_documents ORDER BY created_at DESC",
+      );
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        content: row.content,
+        embedding: row.embedding ? JSON.parse(row.embedding) : null,
+        metadata: row.metadata ? JSON.parse(row.metadata) : {},
+        createdAt: Number(row.created_at),
+      }));
+    } catch (error) {
+      AppLogger.error("Failed to list documents", error, "RAG");
+      return [];
+    }
+  }
+
+  async getDocument(id: string): Promise<LocalDocument | null> {
+    if (!this.db) await this.init();
+    try {
+      const row = await this.db!.getFirstAsync<LocalDocumentRow>(
+        "SELECT * FROM local_documents WHERE id = ?",
+        [id],
+      );
+      if (!row) return null;
+      return {
+        id: row.id,
+        name: row.name,
+        content: row.content,
+        embedding: row.embedding ? JSON.parse(row.embedding) : null,
+        metadata: row.metadata ? JSON.parse(row.metadata) : {},
+        createdAt: Number(row.created_at),
+      };
+    } catch (error) {
+      AppLogger.error("Failed to get document", error, "RAG");
+      return null;
+    }
+  }
+
+  async textSearch(
+    query: string,
+    limit: number = 5,
+  ): Promise<LocalDocumentResult[]> {
+    if (!this.db) await this.init();
+    try {
+      const searchTerm = `%${query}%`;
+      const rows = await this.db!.getAllAsync<LocalDocumentRow>(
+        "SELECT * FROM local_documents WHERE content LIKE ? OR name LIKE ? LIMIT ?",
+        [searchTerm, searchTerm, limit],
+      );
+      return rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        content: row.content,
+        embedding: row.embedding ? JSON.parse(row.embedding) : null,
+        metadata: row.metadata ? JSON.parse(row.metadata) : {},
+        createdAt: Number(row.created_at),
+        score: 1.0,
+      }));
+    } catch (error) {
+      AppLogger.error("Failed to text search", error, "RAG");
+      return [];
     }
   }
 
@@ -119,9 +187,11 @@ export class LocalVectorStore {
     let normA = 0;
     let normB = 0;
     for (let i = 0; i < vecA.length; i++) {
-      dotProduct += vecA[i] * vecB[i];
-      normA += vecA[i] * vecA[i];
-      normB += vecB[i] * vecB[i];
+      const a = vecA[i] ?? 0;
+      const b = vecB[i] ?? 0;
+      dotProduct += a * b;
+      normA += a * a;
+      normB += b * b;
     }
     const magnitude = Math.sqrt(normA) * Math.sqrt(normB);
     return magnitude === 0 ? 0 : dotProduct / magnitude;

@@ -51,6 +51,14 @@ const modelsByProvider: Record<LLMProvider, string[]> = {
   custom: ["gpt-4o", "claude-3.5-sonnet", "llama3.1-70b"],
 };
 
+const transcriptionModelsByProvider: Record<LLMProvider, string> = {
+  replit: "gpt-4o-mini-transcribe",
+  openai: "gpt-4o-mini-transcribe",
+  groq: "whisper-large-v3",
+  ollama: "",
+  custom: "",
+};
+
 function ProviderIcon({
   name,
   size = 20,
@@ -189,6 +197,9 @@ export default function LLMProviderScreen() {
   const [baseUrl, setBaseUrl] = useState(llm.baseUrl);
   const [apiKey, setApiKey] = useState(llm.apiKey);
   const [modelName, setModelName] = useState(llm.modelName);
+  const [transcriptionModel, setTranscriptionModel] = useState(
+    llm.transcriptionModel || "",
+  );
   const [showModelPicker, setShowModelPicker] = useState(false);
 
   const providers: {
@@ -230,14 +241,16 @@ export default function LLMProviderScreen() {
       baseUrl,
       apiKey,
       modelName,
+      transcriptionModel,
     });
     navigation.goBack();
   };
 
   const handleProviderSelect = (providerId: LLMProvider) => {
     setSelectedProvider(providerId);
-    const defaultModel = modelsByProvider[providerId][0];
+    const defaultModel = modelsByProvider[providerId][0] ?? "";
     setModelName(defaultModel);
+    setTranscriptionModel(transcriptionModelsByProvider[providerId]);
   };
 
   const providerDocsUrlByProvider: Partial<Record<LLMProvider, string>> = {
@@ -433,6 +446,32 @@ export default function LLMProviderScreen() {
           </ThemedText>
           <AnimatedChevronIcon size={20} color={theme.textSecondary} />
         </Pressable>
+      </View>
+
+      <View style={styles.section}>
+        <ThemedText
+          style={[styles.sectionTitle, { color: theme.textTertiary }]}
+        >
+          {t("transcriptionModel")}
+        </ThemedText>
+        <TextInput
+          style={[
+            styles.textInput,
+            {
+              backgroundColor: theme.backgroundDefault,
+              borderColor: theme.border,
+              color: theme.text,
+            },
+          ]}
+          placeholder={
+            transcriptionModelsByProvider[selectedProvider] || "whisper-1"
+          }
+          placeholderTextColor={theme.textTertiary}
+          value={transcriptionModel}
+          onChangeText={setTranscriptionModel}
+          autoCapitalize="none"
+          autoCorrect={false}
+        />
       </View>
 
       {showCustomFields ? (

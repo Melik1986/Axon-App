@@ -61,7 +61,7 @@ function AppContent() {
 
   useEffect(() => {
     if (language === "system") {
-      const deviceLanguage = getLocales()[0].languageCode;
+      const deviceLanguage = getLocales()[0]?.languageCode;
       if (deviceLanguage) {
         // Just use the code for now (e.g., 'en', 'ru')
       }

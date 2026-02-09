@@ -80,23 +80,14 @@ export class RagController {
   async uploadDocument(
     @UploadedFile() file: Express.Multer.File,
     @Body("name") name?: string,
-    @Body("ragSettings") ragSettings?: RagSettingsRequest,
-    @Req() req?: ExtendedRequest,
-  ): Promise<DocumentMetadata> {
+  ) {
     if (!file) {
       throw new HttpException("No file provided", HttpStatus.BAD_REQUEST);
     }
 
     const fileName = name || file.originalname;
-    // Use ragSettings from body or ephemeralCredentials
-    const settings =
-      ragSettings || req?.ephemeralCredentials?.ragSettings || undefined;
-    return this.ragService.uploadDocument(
-      file.buffer,
-      fileName,
-      file.mimetype,
-      settings,
-    );
+    // Zero-storage: extract text and return to client. Server stores nothing.
+    return this.ragService.extractText(file.buffer, fileName, file.mimetype);
   }
 
   @Post("upload-url")

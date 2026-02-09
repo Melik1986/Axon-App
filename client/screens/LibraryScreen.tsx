@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -7,6 +7,7 @@ import {
   Pressable,
   Platform,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
@@ -14,8 +15,6 @@ import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path, Circle } from "react-native-svg";
 import * as Haptics from "expo-haptics";
-import * as DocumentPicker from "expo-document-picker";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { LibraryStackParamList } from "@/navigation/LibraryStackNavigator";
 import { AnimatedSearchIcon } from "@/components/AnimatedIcons";
@@ -23,25 +22,18 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { getApiUrl, apiRequest } from "@/lib/query-client";
-import { useAuthStore } from "@/store/authStore";
-import { useSettingsStore } from "@/store/settingsStore";
+import { localVectorStore } from "@/lib/local-rag/vector-store";
+import { documentIndexer } from "@/lib/local-rag/document-indexer";
 import { AppLogger } from "@/lib/logger";
 
-interface Document {
+interface DocumentDisplay {
   id: string;
   name: string;
-  type: "pdf" | "txt" | "docx" | "xlsx" | "other";
-  size: string;
-  uploadedAt: Date;
-  status: "indexed" | "processing" | "error";
-}
-
-type FormDataFile = {
-  uri: string;
   type: string;
-  name: string;
-};
+  size: string;
+  createdAt: number;
+  status: "ready" | "processing";
+}
 
 const DocumentTypeIcon = ({
   type,
@@ -106,124 +98,90 @@ function CloseIcon({
   );
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function LibraryScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation<NavigationProp<LibraryStackParamList>>();
   const { theme } = useTheme();
   const { t } = useTranslation();
-  const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const getAccessToken = useAuthStore((state) => state.getAccessToken);
-  const llmSettings = useSettingsStore((state) => state.llm);
-  const ragSettings = useSettingsStore((state) => state.rag);
+  const [documents, setDocuments] = useState<DocumentDisplay[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isUploading, setIsUploading] = useState(false);
 
-  const { data: documents = [] } = useQuery<Document[]>({
-    queryKey: ["/api/documents"],
-  });
-
-  const uploadMutation = useMutation({
-    mutationFn: async (file: DocumentPicker.DocumentPickerAsset) => {
-      const formData = new FormData();
-
-      if (Platform.OS === "web") {
-        const response = await fetch(file.uri);
-        const blob = await response.blob();
-        formData.append("file", blob, file.name);
-      } else {
-        const filePart: FormDataFile = {
-          uri: file.uri,
-          type: file.mimeType || "application/octet-stream",
-          name: file.name,
-        };
-        formData.append("file", filePart as unknown as Blob);
-      }
-      formData.append("name", file.name);
-
-      // Pass RAG + LLM settings for embedding generation (BYO-LLM)
-      const ragUploadSettings: Record<string, unknown> = {
-        provider: ragSettings.provider,
-        qdrant: ragSettings.qdrant,
-        openaiApiKey: llmSettings.apiKey,
-        openaiBaseUrl: llmSettings.baseUrl,
-      };
-      formData.append("ragSettings", JSON.stringify(ragUploadSettings));
-
-      const headers: Record<string, string> = {};
-      const token = getAccessToken();
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(
-        new URL("/api/documents/upload", getApiUrl()).toString(),
-        {
-          method: "POST",
-          headers,
-          body: formData,
-        },
+  /** Load documents from local SQLite */
+  const loadDocuments = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const docs = await localVectorStore.listAll();
+      setDocuments(
+        docs.map((doc) => ({
+          id: doc.id,
+          name: doc.name,
+          type: (doc.metadata?.type as string) || "other",
+          size: formatBytes(
+            (doc.metadata?.size as number) || doc.content.length,
+          ),
+          createdAt: doc.createdAt,
+          status: "ready" as const,
+        })),
       );
+    } catch (error) {
+      AppLogger.error("Failed to load local documents:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        AppLogger.error("Upload error:", errorText);
-        let userMsg = t("uploadFailed");
-        try {
-          const parsed = JSON.parse(errorText);
-          userMsg = parsed.details
-            ? `${parsed.message}: ${parsed.details}`
-            : parsed.message || userMsg;
-        } catch {
-          /* non-JSON */
-        }
-        throw new Error(userMsg);
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
+
+  /** Upload: pick file -> server extracts text -> store in SQLite */
+  const handleUploadDocument = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+
+    try {
+      setIsUploading(true);
+      const doc = await documentIndexer.indexPickedDocument();
+      if (doc) {
+        await loadDocuments();
+        Alert.alert(t("success"), `${doc.name} saved`);
       }
+    } catch (error) {
+      AppLogger.error("Upload error:", error);
+      Alert.alert(t("error"), t("uploadFailed"));
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      Alert.alert(t("success"), t("documentReindexed"));
-    },
-    onError: (error: Error) => {
-      Alert.alert(t("error"), error.message || t("uploadFailed"));
-      AppLogger.error("Upload mutation error:", error);
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/documents/${id}`);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-    },
-  });
-
-  const seedDemoMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/documents/seed-demo");
-      return response.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/documents"] });
-      if (data.created > 0) {
-        Alert.alert("Success", `${data.created} demo documents added`);
-      } else {
-        Alert.alert("Info", "Demo documents already exist");
-      }
-    },
-    onError: () => {
-      Alert.alert(t("error"), "Failed to add demo documents");
-    },
-  });
-
-  const handleSeedDemo = () => {
+  /** Delete from local SQLite */
+  const handleDeleteDocument = (docId: string) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    seedDemoMutation.mutate();
+
+    Alert.alert(t("confirmDelete"), t("deleteDocumentConfirm"), [
+      { text: t("cancel"), style: "cancel" },
+      {
+        text: t("delete"),
+        style: "destructive",
+        onPress: async () => {
+          await localVectorStore.deleteDocument(docId);
+          await loadDocuments();
+        },
+      },
+    ]);
   };
 
   const filteredDocuments = useMemo(() => {
@@ -237,78 +195,17 @@ export default function LibraryScreen() {
     setSearchQuery(query);
   };
 
-  const handleUploadDocument = async () => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    }
-
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          "application/pdf",
-          "text/plain",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ],
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        uploadMutation.mutate(file);
-      }
-    } catch (error) {
-      AppLogger.error("Document picker error:", error);
-    }
+  const getStatusColor = (status: DocumentDisplay["status"]) => {
+    return status === "ready" ? theme.success : theme.warning;
   };
 
-  const handleDeleteDocument = (docId: string) => {
-    if (Platform.OS !== "web") {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    }
-
-    Alert.alert(t("confirmDelete"), t("deleteDocumentConfirm"), [
-      { text: t("cancel"), style: "cancel" },
-      {
-        text: t("delete"),
-        style: "destructive",
-        onPress: () => {
-          deleteMutation.mutate(docId);
-        },
-      },
-    ]);
+  const getStatusText = (status: DocumentDisplay["status"]) => {
+    return status === "ready" ? t("indexed") : t("processing");
   };
 
-  const getStatusColor = (status: Document["status"]) => {
-    switch (status) {
-      case "indexed":
-        return theme.success;
-      case "processing":
-        return theme.warning;
-      case "error":
-        return theme.error;
-      default:
-        return theme.textTertiary;
-    }
-  };
-
-  const getStatusText = (status: Document["status"]) => {
-    switch (status) {
-      case "indexed":
-        return t("indexed");
-      case "processing":
-        return t("processing");
-      case "error":
-        return t("error");
-      default:
-        return "";
-    }
-  };
-
-  const formatDate = (date: Date | string) => {
-    const dateObj = typeof date === "string" ? new Date(date) : date;
-    const now = new Date();
-    const diff = now.getTime() - dateObj.getTime();
+  const formatDate = (timestamp: number) => {
+    const now = Date.now();
+    const diff = now - timestamp;
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
@@ -319,7 +216,7 @@ export default function LibraryScreen() {
     return `${days}${t("daysAgo")}`;
   };
 
-  const handleDocumentPress = (item: Document) => {
+  const handleDocumentPress = (item: DocumentDisplay) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     navigation.navigate("DocumentViewer", {
       documentId: item.id,
@@ -327,7 +224,7 @@ export default function LibraryScreen() {
     });
   };
 
-  const renderDocument = ({ item }: { item: Document }) => (
+  const renderDocument = ({ item }: { item: DocumentDisplay }) => (
     <Pressable
       style={({ pressed }) => [
         styles.documentCard,
@@ -356,7 +253,7 @@ export default function LibraryScreen() {
           <ThemedText
             style={[styles.documentDate, { color: theme.textTertiary }]}
           >
-            {formatDate(item.uploadedAt)}
+            {formatDate(item.createdAt)}
           </ThemedText>
         </View>
         <View style={styles.statusRow}>
@@ -433,6 +330,17 @@ export default function LibraryScreen() {
         </View>
       </View>
 
+      {isUploading ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color={theme.primary} />
+          <ThemedText
+            style={{ color: theme.textSecondary, marginTop: Spacing.md }}
+          >
+            {t("processing")}...
+          </ThemedText>
+        </View>
+      ) : null}
+
       <FlatList
         data={filteredDocuments}
         keyExtractor={(item) => item.id}
@@ -440,8 +348,11 @@ export default function LibraryScreen() {
         contentContainerStyle={[
           styles.listContent,
           { paddingBottom: tabBarHeight + Spacing.xl },
+          filteredDocuments.length === 0 && styles.emptyListContent,
         ]}
         showsVerticalScrollIndicator={false}
+        refreshing={isLoading}
+        onRefresh={loadDocuments}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons
@@ -458,22 +369,6 @@ export default function LibraryScreen() {
             >
               {t("uploadDocsHint")}
             </ThemedText>
-            <View style={styles.demoButtonContainer}>
-              <Pressable
-                style={[
-                  styles.demoButton,
-                  { backgroundColor: theme.backgroundSecondary },
-                ]}
-                onPress={handleSeedDemo}
-                disabled={seedDemoMutation.isPending}
-              >
-                <ThemedText
-                  style={[styles.demoButtonText, { color: theme.primary }]}
-                >
-                  {seedDemoMutation.isPending ? "Loading..." : "Add Demo Data"}
-                </ThemedText>
-              </Pressable>
-            </View>
           </View>
         }
       />
@@ -582,18 +477,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingVertical: Spacing.xl * 2,
   },
-  demoButtonContainer: {
+  emptyListContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 10,
     alignItems: "center",
-    marginTop: Spacing.lg,
-    paddingHorizontal: Spacing.xl,
-  },
-  demoButton: {
-    paddingHorizontal: Spacing.xl,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.md,
-  },
-  demoButtonText: {
-    fontSize: 14,
-    fontWeight: "600",
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.3)",
   },
 });

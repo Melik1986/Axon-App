@@ -18,13 +18,13 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest } from "@/lib/query-client";
+import { useSkillsStore } from "@/store/skillsStore";
 import { AppLogger } from "@/lib/logger";
 
 interface Skill {
   id: string;
   name: string;
-  description: string;
+  description: string | null;
   code: string;
   enabled: boolean;
 }
@@ -35,8 +35,18 @@ export default function SkillStoreScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
 
-  const [skills, setSkills] = useState<Skill[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    skills: rawSkills,
+    isLoading: loading,
+    loadSkills,
+    createSkill: storeCreateSkill,
+    toggleSkill: storeToggleSkill,
+    deleteSkill: storeDeleteSkill,
+  } = useSkillsStore();
+  const skills: Skill[] = rawSkills.map((s) => ({
+    ...s,
+    enabled: !!s.enabled,
+  }));
   const [isAdding, setIsAdding] = useState(false);
 
   const [name, setName] = useState("");
@@ -45,23 +55,9 @@ export default function SkillStoreScreen() {
     "result = { success: true, message: 'Hello from skill' };",
   );
 
-  const fetchSkills = async () => {
-    try {
-      setLoading(true);
-      const response = await apiRequest("GET", "/api/skills");
-      if (response.ok) {
-        const data = await response.json();
-        setSkills(data);
-      }
-    } catch (error) {
-      AppLogger.error("Failed to fetch skills:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchSkills();
+    void loadSkills();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleAddSkill = async () => {
@@ -71,19 +67,10 @@ export default function SkillStoreScreen() {
     }
 
     try {
-      const response = await apiRequest("POST", "/api/skills", {
-        name,
-        description,
-        code,
-        enabled: true,
-      });
-
-      if (response.ok) {
-        setIsAdding(false);
-        setName("");
-        setDescription("");
-        fetchSkills();
-      }
+      await storeCreateSkill({ name, description, code });
+      setIsAdding(false);
+      setName("");
+      setDescription("");
     } catch (error) {
       AppLogger.error("Failed to add skill:", error);
     }
@@ -91,12 +78,7 @@ export default function SkillStoreScreen() {
 
   const toggleSkill = async (skill: Skill) => {
     try {
-      const response = await apiRequest("PUT", `/api/skills/${skill.id}`, {
-        enabled: !skill.enabled,
-      });
-      if (response.ok) {
-        fetchSkills();
-      }
+      await storeToggleSkill(skill.id);
     } catch (error) {
       AppLogger.error("Failed to toggle skill:", error);
     }
@@ -109,8 +91,11 @@ export default function SkillStoreScreen() {
         text: t("delete"),
         style: "destructive",
         onPress: async () => {
-          await apiRequest("DELETE", `/api/skills/${id}`);
-          fetchSkills();
+          try {
+            await storeDeleteSkill(id);
+          } catch (error) {
+            AppLogger.error("Failed to delete skill:", error);
+          }
         },
       },
     ]);

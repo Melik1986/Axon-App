@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
-import { getApiUrl } from "@/lib/query-client";
+import { apiRequest } from "@/lib/query-client";
+import { localStore } from "@/lib/local-store";
 
 /**
  * Hook for interacting with Axon AI assistant.
@@ -14,14 +15,14 @@ export function useAxon() {
     streamingContent,
     setMessages,
     addMessage,
-    setCurrentConversation,
     setStreaming,
     setStreamingContent,
     clearStreamingContent,
   } = useChatStore();
 
   /**
-   * Send a message to Axon and get streaming response
+   * Send a message to Axon and get streaming response.
+   * Sends history + rules + skills in payload (zero-storage).
    */
   const ask = useCallback(
     async (question: string): Promise<string> => {
@@ -44,15 +45,33 @@ export function useAxon() {
       clearStreamingContent();
 
       try {
-        const baseUrl = getApiUrl();
-        const response = await fetch(
-          `${baseUrl}api/conversations/${currentConversationId}/messages`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ content: question }),
-          },
-        );
+        // Read context from local SQLite for the payload
+        const [history, activeRules, enabledSkills] = await Promise.all([
+          localStore.getRecentHistory(currentConversationId, 20),
+          localStore.getActiveRules(),
+          localStore.getEnabledSkills(),
+        ]);
+
+        const response = await apiRequest("POST", "/api/chat", {
+          content: question,
+          history,
+          rules: activeRules.map((r) => ({
+            id: r.id,
+            name: r.name,
+            condition: r.condition,
+            action: r.action,
+            message: r.message,
+            priority: r.priority,
+          })),
+          skills: enabledSkills.map((s) => ({
+            id: s.id,
+            name: s.name,
+            description: s.description,
+            code: s.code,
+            inputSchema: s.inputSchema,
+            outputSchema: s.outputSchema,
+          })),
+        });
 
         const responseText = await response.text();
         const lines = responseText.split("\n");
@@ -97,22 +116,17 @@ export function useAxon() {
   );
 
   /**
-   * Create a new conversation
+   * Create a new conversation locally (SQLite, no server call)
    */
   const newConversation = useCallback(
-    async (title?: string): Promise<number> => {
-      const baseUrl = getApiUrl();
-      const response = await fetch(`${baseUrl}api/conversations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title || "New Chat" }),
-      });
-      const conversation = await response.json();
-      setCurrentConversation(conversation.id);
+    async (title?: string): Promise<string> => {
+      const id = await useChatStore
+        .getState()
+        .createConversation(title || "New Chat");
       setMessages([]);
-      return conversation.id;
+      return id;
     },
-    [setCurrentConversation, setMessages],
+    [setMessages],
   );
 
   /**

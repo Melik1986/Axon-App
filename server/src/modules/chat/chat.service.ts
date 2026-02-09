@@ -28,14 +28,7 @@ import { ToolRegistryService } from "./tool-registry.service";
 import { ConfidenceScorerService } from "./confidence-scorer.service";
 import { CoveWorkflowService } from "./cove-workflow.service";
 import { GuardianGuard } from "../../guards/guardian.guard";
-
-export interface Message {
-  id: number;
-  conversationId: number;
-  role: "user" | "assistant";
-  content: string;
-  createdAt: string;
-}
+import type { ClientRuleDto, ClientSkillDto } from "./chat.dto";
 
 export interface Attachment {
   name: string;
@@ -43,12 +36,6 @@ export interface Attachment {
   mimeType: string;
   uri: string;
   base64?: string;
-}
-
-export interface Conversation {
-  id: number;
-  title: string;
-  createdAt: string;
 }
 
 type StreamPart = {
@@ -100,56 +87,8 @@ export class ChatService {
     @Inject(GuardianGuard) private guardian: GuardianGuard,
   ) {}
 
-  // Stateless stubs: client stores conversations/messages locally
-  createConversation(title: string): Conversation {
-    // Return stub - client generates ID and stores locally
-    return {
-      id: Date.now(), // Temporary ID, client should use UUID
-      title,
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  getConversation(id: number): Conversation | undefined {
-    return {
-      id,
-      title: "Chat",
-      createdAt: new Date().toISOString(),
-    };
-  }
-
-  getAllConversations(): Conversation[] {
-    // Stateless: return empty array
-    // Client should store conversations locally
-    return [];
-  }
-
-  deleteConversation(id: number): boolean {
-    // Stateless: always return true
-    // Client should handle deletion locally
-    return true;
-  }
-
-  getMessages(conversationId: number): Message[] {
-    // Stateless: return empty array
-    // Client should store messages locally
-    return [];
-  }
-
-  addMessage(
-    conversationId: number,
-    role: "user" | "assistant",
-    content: string,
-  ): Message {
-    // Stateless stub: client should store messages locally
-    return {
-      id: Date.now(),
-      conversationId,
-      role,
-      content,
-      createdAt: new Date().toISOString(),
-    };
-  }
+  // Zero-storage: all CRUD removed. Client manages conversations/messages locally.
+  // Server only processes chat requests.
 
   /**
    * Create Vercel AI SDK provider based on LLM settings using ephemeral client pool
@@ -335,13 +274,15 @@ export class ChatService {
 
   async streamResponse(
     userId: string,
-    conversationId: number,
     rawText: string,
     res: Response,
     llmSettings?: LlmSettings,
     erpSettings?: Partial<ErpConfig>,
     ragSettings?: RagSettingsRequest,
     attachments?: Attachment[],
+    clientHistory?: { role: "user" | "assistant"; content: string }[],
+    clientRules?: ClientRuleDto[],
+    clientSkills?: ClientSkillDto[],
   ) {
     // Check for prompt injection
     const injectionCheck = this.promptInjectionGuard.detectInjection(rawText);
@@ -354,10 +295,8 @@ export class ChatService {
       return;
     }
 
-    // Stateless: no message storage
-    // Client should send history in request if needed
-    // For now, we process without history (each request is independent)
-    const history: { role: "user" | "assistant"; content: string }[] = [];
+    // History comes from client (zero-storage)
+    const history = clientHistory ?? [];
 
     // Search RAG for context
     let ragContext = "";
@@ -383,7 +322,7 @@ export class ChatService {
           typeof m.content === "string"
             ? m.content
             : Array.isArray(m.content)
-              ? (m.content as Array<{ type: string; text?: string }>)
+              ? (m.content as { type: string; text?: string }[])
                   .filter((p) => p.type === "text")
                   .map((p) => p.text ?? "")
                   .join("\n")
@@ -399,7 +338,7 @@ export class ChatService {
         if (att.type === "image" && att.base64) {
           contentParts.push({
             type: "image",
-            image: att.base64,
+            image: `data:${att.mimeType || "image/jpeg"};base64,${att.base64}`,
             providerOptions: { openai: { imageDetail: "low" } },
           });
         } else if (att.type === "file") {
@@ -468,12 +407,18 @@ export class ChatService {
       await this.ephemeralClientPool.useClient(
         poolCredentials,
         async () => {
-          // Create AI provider and tools
+          // Create AI provider and tools (rules/skills from client payload)
           const aiProvider = this.createAiProvider(llmSettings);
           const tools: Record<
             string,
             Tool<unknown, unknown>
-          > = await this.toolRegistry.getTools(userId, erpSettings);
+          > = await this.toolRegistry.getTools(
+            userId,
+            erpSettings,
+            [],
+            clientRules,
+            clientSkills,
+          );
 
           if (verbose) {
             AppLogger.info(
@@ -539,6 +484,7 @@ export class ChatService {
                 userId,
                 toolName,
                 args,
+                clientRules,
               );
 
               const resultOutput = partData.result ?? partData.output;
@@ -603,7 +549,6 @@ export class ChatService {
 
   async streamVoiceResponse(
     userId: string,
-    conversationId: number,
     audioBase64: string,
     res: Response,
     llmSettings?: LlmSettings,
@@ -616,18 +561,6 @@ export class ChatService {
     res.setHeader("Connection", "keep-alive");
 
     try {
-      const conversation = this.getConversation(conversationId);
-      if (!conversation) {
-        res.write(
-          `data: ${JSON.stringify({
-            type: "error",
-            error: "Conversation not found",
-          })}\n\n`,
-        );
-        res.end();
-        return;
-      }
-
       const userTranscript = await this.transcribeAudio(
         audioBase64,
         llmSettings,
@@ -702,7 +635,7 @@ export class ChatService {
           const tools: Record<
             string,
             Tool<unknown, unknown>
-          > = await this.toolRegistry.getTools(userId, erpSettings);
+          > = await this.toolRegistry.getTools(userId, erpSettings, []);
 
           if (verbose) {
             AppLogger.info(
@@ -755,7 +688,7 @@ export class ChatService {
                   ? resultOutput
                   : JSON.stringify(resultOutput);
 
-              await this.guardian.check(userId, toolName, args);
+              await this.guardian.check(userId, toolName, args, []);
 
               if (verbose) {
                 AppLogger.info(
@@ -851,7 +784,7 @@ export class ChatService {
         const tools: Record<
           string,
           Tool<unknown, unknown>
-        > = await this.toolRegistry.getTools(userId, erpSettings);
+        > = await this.toolRegistry.getTools(userId, erpSettings, []);
 
         const result = streamText({
           model: aiProvider(modelName),
@@ -928,7 +861,7 @@ export class ChatService {
               const vTools: Record<
                 string,
                 Tool<unknown, unknown>
-              > = await this.toolRegistry.getTools(userId, erpSettings);
+              > = await this.toolRegistry.getTools(userId, erpSettings, []);
               const vTool = vTools[v.toolName];
               let vResult = "";
               if (vTool && "execute" in vTool && vTool.execute) {

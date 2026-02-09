@@ -91,13 +91,22 @@ export class RagService {
     return null;
   }
 
-  async uploadDocument(
+  /**
+   * Extract text from file buffer. Returns text + chunks synchronously.
+   * Zero-storage: server does NOT store anything. Client stores locally.
+   */
+  async extractText(
     buffer: Buffer,
     fileName: string,
     mimeType: string,
-    ragSettings?: RagSettingsRequest,
-  ): Promise<DocumentMetadata> {
-    // Stateless: process and upload directly to provider, no local storage
+  ): Promise<{
+    id: string;
+    name: string;
+    type: DocumentMetadata["type"];
+    size: number;
+    text: string;
+    chunks: string[];
+  }> {
     const id = randomUUID();
     const fileExtension = fileName.split(".").pop()?.toLowerCase() || "other";
     const fileType: DocumentMetadata["type"] =
@@ -111,21 +120,66 @@ export class RagService {
               ? "xlsx"
               : "other";
 
-    const doc: DocumentMetadata = {
+    let content: string;
+
+    if (mimeType === "text/plain" || mimeType.includes("text")) {
+      content = buffer.toString("utf-8");
+    } else if (mimeType === "application/pdf") {
+      try {
+        let parser: PDFParse | null = null;
+        try {
+          parser = new PDFParse({ data: buffer });
+          const pdfData = await parser.getText();
+          content = pdfData.text || "";
+        } finally {
+          if (parser) {
+            await parser.destroy();
+          }
+        }
+        if (!content.trim()) {
+          content =
+            "[PDF contains no extractable text - may be scanned/image-based]";
+        }
+        AppLogger.info(
+          `PDF parsed successfully: ${content.length} characters extracted`,
+        );
+      } catch (pdfError) {
+        AppLogger.error("PDF parsing error:", pdfError);
+        content = `[PDF parsing failed: ${pdfError instanceof Error ? pdfError.message : "Unknown error"}]`;
+      }
+    } else {
+      content = `[Document content - format: ${mimeType}]`;
+    }
+
+    const chunks = this.splitIntoChunks(content, 500);
+
+    return {
       id,
       name: fileName,
       type: fileType,
-      size: this.formatFileSize(buffer.length),
-      uploadedAt: new Date(),
-      status: "processing",
+      size: buffer.length,
+      text: content,
+      chunks,
     };
+  }
 
-    // Process and upload to provider asynchronously
-    this.processDocument(id, buffer, mimeType, ragSettings).catch((error) => {
-      AppLogger.error(`Failed to process document ${id}:`, error);
-    });
-
-    return doc;
+  /** @deprecated Use extractText() -- kept for backward compat */
+  async uploadDocument(
+    buffer: Buffer,
+    fileName: string,
+    mimeType: string,
+    ragSettings?: RagSettingsRequest,
+  ): Promise<DocumentMetadata> {
+    const extracted = await this.extractText(buffer, fileName, mimeType);
+    return {
+      id: extracted.id,
+      name: extracted.name,
+      type: extracted.type,
+      size: this.formatFileSize(extracted.size),
+      uploadedAt: new Date(),
+      status: "ready",
+      chunkCount: extracted.chunks.length,
+    };
   }
 
   async uploadFromUrl(
@@ -353,7 +407,7 @@ export class RagService {
           model: "text-embedding-3-small",
           input: text,
         });
-        return response.data[0].embedding;
+        return response.data[0]?.embedding ?? [];
       },
     );
   }
@@ -368,7 +422,9 @@ export class RagService {
     if (!config?.url) return;
 
     for (let i = 0; i < chunks.length; i++) {
-      const embedding = await this.embed(chunks[i], llmSettings);
+      const chunk = chunks[i];
+      if (!chunk) continue;
+      const embedding = await this.embed(chunk, llmSettings);
       await fetch(`${config.url}/collections/${config.collectionName}/points`, {
         method: "PUT",
         headers: {
@@ -403,7 +459,9 @@ export class RagService {
     if (!config?.url) return;
 
     for (let i = 0; i < chunks.length; i++) {
-      const embedding = await this.embed(chunks[i], llmSettings);
+      const chunk = chunks[i];
+      if (!chunk) continue;
+      const embedding = await this.embed(chunk, llmSettings);
       await fetch(`${config.url}/rest/v1/${config.tableName}`, {
         method: "POST",
         headers: {
@@ -534,7 +592,7 @@ export class RagService {
           model: "text-embedding-3-small",
           input: text,
         });
-        return response.data[0].embedding;
+        return response.data[0]?.embedding ?? [];
       },
     );
   }
@@ -659,9 +717,11 @@ export class RagService {
     let normA = 0;
     let normB = 0;
     for (let i = 0; i < a.length; i++) {
-      dotProduct += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
+      const ai = a[i] ?? 0;
+      const bi = b[i] ?? 0;
+      dotProduct += ai * bi;
+      normA += ai * ai;
+      normB += bi * bi;
     }
     return dotProduct / (Math.sqrt(normA) * Math.sqrt(normB));
   }

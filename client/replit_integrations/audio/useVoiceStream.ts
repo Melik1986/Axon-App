@@ -25,7 +25,7 @@ export function useVoiceStream(callbacks: StreamCallbacks = {}) {
         const fileReader = new FileReader();
         fileReader.onload = () => {
           const result = fileReader.result as string;
-          resolve(result.split(",")[1]); // Remove data URL prefix
+          resolve(result.split(",")[1] ?? ""); // Remove data URL prefix
         };
         fileReader.readAsDataURL(audioBlob);
       });

@@ -15,7 +15,7 @@ export function useTranslation() {
       let language = languageSetting;
 
       if (language === "system") {
-        const deviceLanguage = getLocales()[0].languageCode;
+        const deviceLanguage = getLocales()[0]?.languageCode;
         language = deviceLanguage || "en";
       }
 

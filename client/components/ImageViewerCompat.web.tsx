@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Feather } from "@expo/vector-icons";
 
 interface ImageViewerProps {
-  images: Array<{ uri: string }>;
+  images: { uri: string }[];
   imageIndex: number;
   visible: boolean;
   onRequestClose: () => void;
@@ -23,7 +23,12 @@ export default function ImageViewerCompat({
   if (!currentImage) return null;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onRequestClose}
+    >
       <View style={styles.overlay}>
         <Pressable style={styles.closeButton} onPress={onRequestClose}>
           <Feather name="x" size={28} color="#fff" />

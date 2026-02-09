@@ -5,12 +5,12 @@ import {
   type McpServerConfig,
 } from "../../services/mcp-host.service";
 import { OpenApiToolGeneratorService } from "../../services/openapi-tool-generator.service";
-import { RulebookService } from "../rules/rulebook.service";
-import { SkillService } from "../skills/skill.service";
 import { ErpService } from "../erp/erp.service";
 import { ErpConfig } from "../erp/erp.types";
 import { AppLogger } from "../../utils/logger";
 import { GuardianGuard } from "../../guards/guardian.guard";
+import { SandboxExecutorService } from "../skills/sandbox-executor.service";
+import type { ClientRuleDto, ClientSkillDto } from "./chat.dto";
 
 @Injectable()
 export class ToolRegistryService {
@@ -20,23 +20,26 @@ export class ToolRegistryService {
     @Inject(OpenApiToolGeneratorService)
     private openApiGenerator: OpenApiToolGeneratorService,
     @Inject(ErpService) private erpService: ErpService,
-    @Inject(RulebookService) private rulebook: RulebookService,
-    @Inject(SkillService) private skillService: SkillService,
     @Inject(GuardianGuard) private guardian: GuardianGuard,
+    @Inject(SandboxExecutorService) private sandbox: SandboxExecutorService,
   ) {}
 
   /**
    * Get all tools for the current session.
    * Merges builtin tools, MCP tools, OpenAPI tools, and User Skills.
+   * Rules and skills come from the client payload (zero-storage).
    */
   async getTools(
     userId: string,
     erpSettings?: Partial<ErpConfig>,
     mcpServers: McpServerConfig[] = [],
+    clientRules?: ClientRuleDto[],
+    clientSkills?: ClientSkillDto[],
   ): Promise<Record<string, Tool<unknown, unknown>>> {
     const tools: Record<string, Tool<unknown, unknown>> = {};
+    const rules = clientRules ?? [];
 
-    // Helper to wrap execution with validation
+    // Helper to wrap execution with validation (rules from payload)
     const wrapExecute = (
       toolName: string,
       execute: (args: Record<string, unknown>) => Promise<unknown>,
@@ -44,11 +47,12 @@ export class ToolRegistryService {
       return async (args: unknown) => {
         const castArgs = args as Record<string, unknown>;
 
-        // Use Guardian for comprehensive check
+        // Use Guardian with rules from client payload
         const guardianResult = await this.guardian.check(
           userId,
           toolName,
           castArgs,
+          rules,
         );
 
         if (!guardianResult.allowed) {
@@ -56,9 +60,6 @@ export class ToolRegistryService {
         }
 
         if (guardianResult.action === "require_confirmation") {
-          // In a real agentic platform, we would throw a specific error
-          // that the client can catch to show a confirmation UI.
-          // For now, we'll prefix the result or use a convention.
           AppLogger.warn(
             `Confirmation required for ${toolName}: ${guardianResult.message}`,
             undefined,
@@ -117,11 +118,9 @@ export class ToolRegistryService {
       }
     }
 
-    // 4. Add User Skills
-    const userSkills = await this.skillService.getSkills(userId);
-    for (const skill of userSkills) {
-      if (!skill.enabled) continue;
-
+    // 4. Add User Skills from client payload (zero-storage)
+    const skills = clientSkills ?? [];
+    for (const skill of skills) {
       const skillName = `skill_${skill.name.replace(/[^a-zA-Z0-9]/g, "_")}`;
       tools[skillName] = dynamicTool({
         description: skill.description || `Execute custom skill: ${skill.name}`,
@@ -129,7 +128,7 @@ export class ToolRegistryService {
           ? jsonSchema(JSON.parse(skill.inputSchema))
           : this.emptySchema,
         execute: wrapExecute(skillName, async (args) => {
-          return this.skillService.executeSkill(skill.id, userId, args);
+          return this.sandbox.execute(skill.code, args);
         }),
       });
     }

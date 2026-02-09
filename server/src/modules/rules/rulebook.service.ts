@@ -1,64 +1,28 @@
-import { Injectable, Inject } from "@nestjs/common";
-import { DATABASE_CONNECTION, Database } from "../../db/db.module";
-import { rules, type Rule, type InsertRule } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { Injectable } from "@nestjs/common";
 import { AppLogger } from "../../utils/logger";
+import type { ClientRuleDto } from "../chat/chat.dto";
 
+/**
+ * Stateless rule validation service.
+ * Rules come from the client payload -- server stores nothing.
+ */
 @Injectable()
 export class RulebookService {
-  constructor(@Inject(DATABASE_CONNECTION) private db: Database) {}
-
-  async getRules(userId: string): Promise<Rule[]> {
-    if (!this.db) return [];
-    return this.db
-      .select()
-      .from(rules)
-      .where(eq(rules.userId, userId))
-      .orderBy(rules.priority);
-  }
-
-  async createRule(rule: InsertRule): Promise<Rule | null> {
-    if (!this.db) return null;
-    const [newRule] = await this.db.insert(rules).values(rule).returning();
-    return newRule;
-  }
-
-  async updateRule(
-    id: string,
-    userId: string,
-    rule: Partial<Rule>,
-  ): Promise<Rule | null> {
-    if (!this.db) return null;
-    const [updatedRule] = await this.db
-      .update(rules)
-      .set(rule)
-      .where(and(eq(rules.id, id), eq(rules.userId, userId)))
-      .returning();
-    return updatedRule;
-  }
-
-  async deleteRule(id: string, userId: string): Promise<boolean> {
-    if (!this.db) return false;
-    const result = await this.db
-      .delete(rules)
-      .where(and(eq(rules.id, id), eq(rules.userId, userId)))
-      .returning();
-    return result.length > 0;
-  }
-
   /**
-   * Validate a tool call against the user's rules.
-   * Returns validation result: { allowed: boolean, action: string, message?: string }
+   * Validate a tool call against client-provided rules (stateless).
+   * No DB access -- rules are in-memory from the request.
    */
-  async validateToolCall(
-    userId: string,
+  validateToolCallStateless(
+    rules: ClientRuleDto[],
     toolName: string,
     args: Record<string, unknown>,
-  ) {
-    const userRules = await this.getRules(userId);
-    const activeRules = userRules.filter((r) => r.enabled);
-
-    for (const rule of activeRules) {
+  ): {
+    allowed: boolean;
+    action: string;
+    message?: string;
+    ruleId?: string;
+  } {
+    for (const rule of rules) {
       try {
         const condition = JSON.parse(rule.condition) as {
           tool?: string;
@@ -108,7 +72,7 @@ export class RulebookService {
             return {
               allowed: rule.action !== "reject",
               action: rule.action,
-              message: rule.message || `Нарушено правило: ${rule.name}`,
+              message: rule.message || `Rule violated: ${rule.name}`,
               ruleId: rule.id,
             };
           }

@@ -37,6 +37,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useVoice } from "@/hooks/useVoice";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { getApiUrl } from "@/lib/query-client";
+import { localStore } from "@/lib/local-store";
 import { AppLogger } from "@/lib/logger";
 
 export default function ChatScreen() {
@@ -76,27 +77,16 @@ export default function ChatScreen() {
     clearStreamingContent,
   } = useChatStore();
 
+  const { createConversation } = useChatStore();
+
   const createOrLoadConversation = React.useCallback(async () => {
     try {
-      const baseUrl = getApiUrl();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      const token = getAccessToken();
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-      const response = await fetch(`${baseUrl}api/conversations`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ title: t("newChat") }),
-      });
-      const conversation = await response.json();
-      setCurrentConversation(conversation.id);
+      const id = await createConversation(t("newChat"));
+      setCurrentConversation(id);
     } catch (error) {
       AppLogger.error("Failed to create conversation:", error);
     }
-  }, [t, setCurrentConversation, getAccessToken]);
+  }, [t, setCurrentConversation, createConversation]);
 
   useEffect(() => {
     createOrLoadConversation();
@@ -137,35 +127,58 @@ export default function ChatScreen() {
       if (token) {
         msgHeaders["Authorization"] = `Bearer ${token}`;
       }
-      const response = await fetch(
-        `${baseUrl}api/conversations/${currentConversationId}/messages`,
-        {
-          method: "POST",
-          headers: msgHeaders,
-          body: JSON.stringify({
-            content: userMessage.content,
-            attachments: userMessage.attachments,
-            llmSettings: {
-              provider: llmSettings.provider,
-              baseUrl: llmSettings.baseUrl,
-              apiKey: llmSettings.apiKey,
-              modelName: llmSettings.modelName,
-            },
-            erpSettings: {
-              provider: erpSettings.provider,
-              baseUrl: erpSettings.url,
-              username: erpSettings.username,
-              password: erpSettings.password,
-              apiKey: erpSettings.apiKey,
-              apiType: erpSettings.apiType,
-            },
-            ragSettings: {
-              provider: ragSettings.provider,
-              qdrant: ragSettings.qdrant,
-            },
-          }),
-        },
-      );
+
+      // Read context from local SQLite for zero-storage payload
+      const convId = currentConversationId as string;
+      const [history, activeRules, enabledSkills] = await Promise.all([
+        localStore.getRecentHistory(convId, 20),
+        localStore.getActiveRules(),
+        localStore.getEnabledSkills(),
+      ]);
+
+      const response = await fetch(`${baseUrl}api/chat`, {
+        method: "POST",
+        headers: msgHeaders,
+        body: JSON.stringify({
+          content: userMessage.content,
+          attachments: userMessage.attachments,
+          history,
+          rules: activeRules.map((r) => ({
+            id: r.id,
+            name: r.name,
+            condition: r.condition,
+            action: r.action,
+            message: r.message,
+            priority: r.priority,
+          })),
+          skills: enabledSkills.map((s) => ({
+            id: s.id,
+            name: s.name,
+            description: s.description,
+            code: s.code,
+            inputSchema: s.inputSchema,
+            outputSchema: s.outputSchema,
+          })),
+          llmSettings: {
+            provider: llmSettings.provider,
+            baseUrl: llmSettings.baseUrl,
+            apiKey: llmSettings.apiKey,
+            modelName: llmSettings.modelName,
+          },
+          erpSettings: {
+            provider: erpSettings.provider,
+            baseUrl: erpSettings.url,
+            username: erpSettings.username,
+            password: erpSettings.password,
+            apiKey: erpSettings.apiKey,
+            apiType: erpSettings.apiType,
+          },
+          ragSettings: {
+            provider: ragSettings.provider,
+            qdrant: ragSettings.qdrant,
+          },
+        }),
+      });
 
       if (!response.ok) {
         const errorBody = await response.text();
@@ -353,8 +366,11 @@ export default function ChatScreen() {
         type: "*/*",
         copyToCacheDirectory: true,
       });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
+      const asset =
+        !result.canceled && result.assets?.length
+          ? result.assets[0]
+          : undefined;
+      if (asset) {
         let base64: string | undefined;
 
         try {
@@ -366,7 +382,7 @@ export default function ChatScreen() {
         }
 
         const attachment: Attachment = {
-          name: asset.name,
+          name: asset.name ?? "document",
           type: "file",
           mimeType: asset.mimeType || "application/octet-stream",
           uri: asset.uri,

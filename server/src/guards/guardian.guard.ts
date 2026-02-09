@@ -1,6 +1,7 @@
 import { Injectable, Inject } from "@nestjs/common";
 import { RulebookService } from "../modules/rules/rulebook.service";
 import { ValidationService } from "../services/validation.service";
+import type { ClientRuleDto } from "../modules/chat/chat.dto";
 
 export interface GuardianCheckResult {
   allowed: boolean;
@@ -17,15 +18,17 @@ export class GuardianGuard {
 
   /**
    * Comprehensive check of a tool call before execution.
+   * Rules come from the client payload (zero-storage).
    */
   async check(
     userId: string,
     toolName: string,
     args: Record<string, unknown>,
+    clientRules?: ClientRuleDto[],
   ): Promise<GuardianCheckResult> {
-    // 1. Rulebook Check (User-defined rules)
-    const ruleResult = await this.rulebook.validateToolCall(
-      userId,
+    // 1. Rulebook Check -- validate against rules from client payload
+    const ruleResult = this.rulebook.validateToolCallStateless(
+      clientRules ?? [],
       toolName,
       args,
     );

@@ -44,8 +44,41 @@ export type ChatMessage = {
 };
 
 export type Conversation = {
-  id: number;
+  id: number | string;
   title: string;
   createdAt: string;
   messages?: ChatMessage[];
+  /** Local SQLite UUID (zero-storage) */
+  _localId?: string;
+};
+
+/** Stateless chat request payload (zero-storage) */
+export type ChatRequestPayload = {
+  content: string;
+  history?: { role: "user" | "assistant"; content: string }[];
+  rules?: {
+    id: string;
+    name: string;
+    condition: string;
+    action: string;
+    message?: string;
+    priority?: number;
+  }[];
+  skills?: {
+    id: string;
+    name: string;
+    description?: string;
+    code: string;
+    inputSchema?: string;
+    outputSchema?: string;
+  }[];
+  attachments?: Attachment[];
+  llmSettings?: {
+    provider: string;
+    baseUrl?: string;
+    apiKey?: string;
+    modelName?: string;
+  };
+  erpSettings?: Record<string, unknown>;
+  ragSettings?: Record<string, unknown>;
 };

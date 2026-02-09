@@ -1,4 +1,11 @@
-import { IsString, IsOptional, ValidateNested, IsIn } from "class-validator";
+import {
+  IsString,
+  IsOptional,
+  ValidateNested,
+  IsIn,
+  IsArray,
+  IsNumber,
+} from "class-validator";
 import { Type } from "class-transformer";
 import { LlmSettings } from "../llm/llm.types";
 import { ErpConfig } from "../erp/erp.types";
@@ -125,6 +132,107 @@ export class VoiceMessageDto {
   @IsOptional()
   @IsString()
   transcriptionModel?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LlmSettingsDto)
+  llmSettings?: LlmSettingsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => ErpSettingsDto)
+  erpSettings?: ErpSettingsDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => RagSettingsDto)
+  ragSettings?: RagSettingsDto;
+}
+
+// ─── Zero-Storage DTOs ───────────────────────────────────────
+
+export class HistoryMessageDto {
+  @IsIn(["user", "assistant"])
+  role!: "user" | "assistant";
+
+  @IsString()
+  content!: string;
+}
+
+export class ClientRuleDto {
+  @IsString()
+  id!: string;
+
+  @IsString()
+  name!: string;
+
+  @IsString()
+  condition!: string;
+
+  @IsString()
+  action!: string;
+
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  @IsNumber()
+  priority?: number;
+}
+
+export class ClientSkillDto {
+  @IsString()
+  id!: string;
+
+  @IsString()
+  name!: string;
+
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @IsString()
+  code!: string;
+
+  @IsOptional()
+  @IsString()
+  inputSchema?: string;
+
+  @IsOptional()
+  @IsString()
+  outputSchema?: string;
+}
+
+/**
+ * Stateless chat request: client sends everything the server needs.
+ */
+export class ChatRequestDto {
+  @IsString()
+  content!: string;
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => HistoryMessageDto)
+  history?: HistoryMessageDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ClientRuleDto)
+  rules?: ClientRuleDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ClientSkillDto)
+  skills?: ClientSkillDto[];
+
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentDto)
+  attachments?: AttachmentDto[];
 
   @IsOptional()
   @ValidateNested()

@@ -2,7 +2,7 @@ import React from "react";
 import ImageViewing from "react-native-image-viewing";
 
 interface ImageViewerProps {
-  images: Array<{ uri: string }>;
+  images: { uri: string }[];
   imageIndex: number;
   visible: boolean;
   onRequestClose: () => void;

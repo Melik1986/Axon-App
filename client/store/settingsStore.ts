@@ -11,6 +11,7 @@ interface LLMSettings {
   baseUrl: string;
   apiKey: string;
   modelName: string;
+  transcriptionModel: string;
   provider: "replit" | "openai" | "ollama" | "groq" | "custom";
 }
 
@@ -65,6 +66,7 @@ const defaultLLM: LLMSettings = {
   baseUrl: "",
   apiKey: "",
   modelName: "gpt-4o",
+  transcriptionModel: "",
   provider: "replit",
 };
 

@@ -23,7 +23,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { getApiUrl, apiRequest } from "@/lib/query-client";
+import { apiRequest } from "@/lib/query-client";
 import { LibraryStackParamList } from "@/navigation/LibraryStackNavigator";
 
 type DocumentViewerRouteProp = RouteProp<
@@ -56,10 +56,7 @@ export default function DocumentViewerScreen() {
   const { data: document, isLoading: loadingDoc } = useQuery<DocumentMetadata>({
     queryKey: ["/api/documents", documentId],
     queryFn: async () => {
-      const response = await fetch(
-        new URL(`/api/documents/${documentId}`, getApiUrl()).toString(),
-      );
-      if (!response.ok) throw new Error("Failed to fetch document");
+      const response = await apiRequest("GET", `/api/documents/${documentId}`);
       return response.json();
     },
   });
@@ -70,10 +67,10 @@ export default function DocumentViewerScreen() {
   }>({
     queryKey: ["/api/documents", documentId, "content"],
     queryFn: async () => {
-      const response = await fetch(
-        new URL(`/api/documents/${documentId}/content`, getApiUrl()).toString(),
+      const response = await apiRequest(
+        "GET",
+        `/api/documents/${documentId}/content`,
       );
-      if (!response.ok) throw new Error("Failed to fetch content");
       return response.json();
     },
   });

@@ -20,8 +20,7 @@ import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing } from "@/constants/theme";
-import { getApiUrl } from "@/lib/query-client";
-import { Conversation } from "@/store/chatStore";
+import { localStore, type LocalConversation } from "@/lib/local-store";
 import { AppLogger } from "@/lib/logger";
 
 export default function HistoryScreen() {
@@ -32,7 +31,7 @@ export default function HistoryScreen() {
   const { t } = useTranslation();
 
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<LocalConversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -42,9 +41,7 @@ export default function HistoryScreen() {
   const loadConversations = async () => {
     try {
       setIsLoading(true);
-      const baseUrl = getApiUrl();
-      const response = await fetch(`${baseUrl}api/conversations`);
-      const data = await response.json();
+      const data = await localStore.listConversations();
       setConversations(data);
     } catch (error) {
       AppLogger.error("Failed to load conversations:", error);
@@ -53,24 +50,19 @@ export default function HistoryScreen() {
     }
   };
 
-  const deleteConversation = async (id: number) => {
+  const deleteConversation = async (id: string) => {
     try {
-      const baseUrl = getApiUrl();
-      const response = await fetch(`${baseUrl}api/conversations/${id}`, {
-        method: "DELETE",
-      });
-      if (response.ok || response.status === 204) {
-        setConversations((prev) => prev.filter((c) => c.id !== id));
-        if (Platform.OS !== "web") {
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
+      await localStore.deleteConversation(id);
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (Platform.OS !== "web") {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
     } catch (error) {
       AppLogger.error("Failed to delete conversation:", error);
     }
   };
 
-  const confirmDelete = (item: Conversation) => {
+  const confirmDelete = (item: LocalConversation) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -90,8 +82,8 @@ export default function HistoryScreen() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (ts: number | string) => {
+    const date = new Date(ts);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
@@ -103,14 +95,14 @@ export default function HistoryScreen() {
     return date.toLocaleDateString();
   };
 
-  const handleItemPress = (item: Conversation) => {
+  const handleItemPress = (item: LocalConversation) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
   };
 
   const renderItem = useCallback(
-    ({ item }: { item: Conversation }) => (
+    ({ item }: { item: LocalConversation }) => (
       <View
         style={[
           styles.historyItem,
@@ -216,7 +208,7 @@ export default function HistoryScreen() {
         ]}
         data={conversations}
         renderItem={renderItem}
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item) => item.id}
         ListEmptyComponent={renderEmpty}
         scrollIndicatorInsets={{ bottom: insets.bottom }}
         ItemSeparatorComponent={() => <View style={styles.separator} />}

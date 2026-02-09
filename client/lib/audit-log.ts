@@ -85,7 +85,7 @@ export class AuditLog {
     const logs = await this.getLogs();
     return logs.reduce((total, entry) => {
       const costMatch = entry.cost.match(/\$?([\d.]+)/);
-      if (costMatch) {
+      if (costMatch && costMatch[1]) {
         return total + parseFloat(costMatch[1]);
       }
       return total;

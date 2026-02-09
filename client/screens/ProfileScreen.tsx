@@ -28,7 +28,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { getApiUrl } from "@/lib/query-client";
+import { apiRequest } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
 
 const languageNames: Record<string, string> = {
@@ -54,8 +54,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     const fetchProviderSettings = async () => {
       try {
-        const url = new URL("/api/documents/providers", getApiUrl());
-        const response = await fetch(url.toString());
+        const response = await apiRequest("GET", "/api/documents/providers");
         if (response.ok) {
           const data = await response.json();
           const currentProvider = (data.current || "none") as RagProvider;

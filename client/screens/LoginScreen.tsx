@@ -22,7 +22,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAuthStore } from "@/store/authStore";
 import { getApiUrl } from "@/lib/query-client";
-import { Spacing, BorderRadius, ThemeColors } from "@/constants/theme";
+import { Spacing, BorderRadius } from "@/constants/theme";
 import { AppLogger } from "@/lib/logger";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -93,7 +93,7 @@ export default function LoginScreen() {
   const extractCodeFromUrl = useCallback((url: string): string | null => {
     try {
       const codeMatch = url.match(/[?&]code=([^&]+)/);
-      return codeMatch ? decodeURIComponent(codeMatch[1]) : null;
+      return codeMatch?.[1] ? decodeURIComponent(codeMatch[1]) : null;
     } catch {
       return null;
     }

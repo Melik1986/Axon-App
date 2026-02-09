@@ -87,6 +87,7 @@ export type Session = typeof sessions.$inferSelect;
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
 
+/** @deprecated Zero-storage: conversations are stored on client (phone SQLite). Kept for reference. */
 export const conversations = pgTable("conversations", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").references(() => users.id, {
@@ -98,6 +99,7 @@ export const conversations = pgTable("conversations", {
     .notNull(),
 });
 
+/** @deprecated Zero-storage: messages are stored on client (phone SQLite). Kept for reference. */
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   conversationId: integer("conversation_id")
@@ -181,6 +183,7 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 
+/** @deprecated Zero-storage: rules are stored on client (phone SQLite). Kept for reference. */
 export const rules = pgTable("rules", {
   id: varchar("id")
     .primaryKey()
@@ -208,6 +211,7 @@ export const insertRuleSchema = createInsertSchema(rules).omit({
 export type Rule = typeof rules.$inferSelect;
 export type InsertRule = z.infer<typeof insertRuleSchema>;
 
+/** @deprecated Zero-storage: skills are stored on client (phone SQLite). Kept for reference. */
 export const skills = pgTable("skills", {
   id: varchar("id")
     .primaryKey()

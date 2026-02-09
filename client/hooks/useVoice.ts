@@ -36,7 +36,7 @@ export function useVoice() {
   const player = useAudioPlayer(""); // Empty source initially
 
   const { currentConversationId } = useChatStore();
-  const { session } = useAuthStore();
+  // Auth token retrieved via useAuthStore.getState().getAccessToken() in sendRecording
   const { llm, erp, rag } = useSettingsStore();
 
   /**
@@ -165,39 +165,37 @@ export function useVoice() {
         "Content-Type": "application/json",
       };
 
-      if (session?.accessToken) {
-        headers["Authorization"] = `Bearer ${session.accessToken}`;
+      const token = useAuthStore.getState().getAccessToken();
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const serverResponse = await fetch(
-        `${baseUrl}api/voice/${currentConversationId}/message`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            audio: base64,
-            transcriptionModel: "gpt-4o-mini-transcribe",
-            llmSettings: {
-              provider: llm.provider,
-              baseUrl: llm.baseUrl,
-              apiKey: llm.apiKey,
-              modelName: llm.modelName,
-            },
-            erpSettings: {
-              provider: erp.provider,
-              baseUrl: erp.url,
-              username: erp.username,
-              password: erp.password,
-              apiKey: erp.apiKey,
-              apiType: erp.apiType,
-            },
-            ragSettings: {
-              provider: rag.provider,
-              qdrant: rag.qdrant,
-            },
-          }),
-        },
-      );
+      const serverResponse = await fetch(`${baseUrl}api/voice/message`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          audio: base64,
+          transcriptionModel: llm.transcriptionModel || "whisper-1",
+          llmSettings: {
+            provider: llm.provider,
+            baseUrl: llm.baseUrl,
+            apiKey: llm.apiKey,
+            modelName: llm.modelName,
+          },
+          erpSettings: {
+            provider: erp.provider,
+            baseUrl: erp.url,
+            username: erp.username,
+            password: erp.password,
+            apiKey: erp.apiKey,
+            apiType: erp.apiType,
+          },
+          ragSettings: {
+            provider: rag.provider,
+            qdrant: rag.qdrant,
+          },
+        }),
+      });
 
       if (!serverResponse.ok) {
         const errorText = await serverResponse.text().catch(() => "");
@@ -249,7 +247,23 @@ export function useVoice() {
       return result;
     } catch (err) {
       AppLogger.error("Error processing recording:", err);
-      setError("Failed to process voice message");
+      const errorMsg = err instanceof Error ? err.message : "Unknown error";
+      const isTranscriptionError =
+        errorMsg.includes("transcri") ||
+        errorMsg.includes("audio") ||
+        errorMsg.includes("model") ||
+        errorMsg.includes("404");
+      if (isTranscriptionError) {
+        // Graceful warning in chat instead of generic error
+        const { addMessage } = useChatStore.getState();
+        addMessage({
+          id: Date.now(),
+          role: "assistant",
+          content: `⚠️ Voice transcription failed: ${errorMsg}\n\nCheck Settings → LLM Provider → Transcription Model. Providers like Ollama may not support audio transcription API.`,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      setError(isTranscriptionError ? "" : "Failed to process voice message");
       return null;
     } finally {
       setIsProcessing(false);
@@ -258,7 +272,6 @@ export function useVoice() {
     audioRecorder,
     recorderState.isRecording,
     currentConversationId,
-    session,
     llm,
     erp,
     rag,

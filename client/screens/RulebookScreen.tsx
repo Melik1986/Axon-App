@@ -20,25 +20,14 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest } from "@/lib/query-client";
+import { useRulesStore } from "@/store/rulesStore";
+import { localVectorStore } from "@/lib/local-rag/vector-store";
 import { AppLogger } from "@/lib/logger";
+import type { LocalRule } from "@/lib/local-store";
+import type { LocalDocument } from "@/lib/local-rag/vector-store";
 
-interface Rule {
-  id: string;
-  name: string;
-  description: string;
-  condition: string;
-  action: string;
-  message: string;
-  enabled: boolean;
-}
-
-interface Document {
-  id: string;
-  name: string;
-  type: string;
-  status: string;
-}
+type Rule = Omit<LocalRule, "enabled"> & { enabled: boolean };
+type Document = LocalDocument;
 
 export default function RulebookScreen() {
   const insets = useSafeAreaInsets();
@@ -46,9 +35,9 @@ export default function RulebookScreen() {
   const { theme } = useTheme();
   const { t } = useTranslation();
 
-  const [rules, setRules] = useState<Rule[]>([]);
+  const { rules: rawRules, isLoading: loading, loadRules } = useRulesStore();
+  const rules: Rule[] = rawRules.map((r) => ({ ...r, enabled: !!r.enabled }));
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
 
   // New rule form state
@@ -63,33 +52,25 @@ export default function RulebookScreen() {
   const [message, setMessage] = useState("Quantity cannot be negative");
 
   const fetchData = async () => {
+    await loadRules();
     try {
-      setLoading(true);
-      const [rulesRes, docsRes] = await Promise.all([
-        apiRequest("GET", "/api/rules"),
-        apiRequest("GET", "/api/documents"),
-      ]);
-
-      if (rulesRes.ok) {
-        const data = await rulesRes.json();
-        setRules(data);
-      }
-      if (docsRes.ok) {
-        const data = await docsRes.json();
-        // Filter documents that might be rules (e.g., .md, .json, .txt)
-        // For now, show all as the user requested visibility
-        setDocuments(data);
-      }
+      const docs = await localVectorStore.listAll();
+      setDocuments(docs);
     } catch (error) {
-      AppLogger.error("Failed to fetch data:", error);
-    } finally {
-      setLoading(false);
+      AppLogger.error("Failed to fetch docs:", error);
     }
   };
 
   useEffect(() => {
-    fetchData();
+    void fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const {
+    createRule: storeCreateRule,
+    toggleRule: storeToggleRule,
+    deleteRule: storeDeleteRule,
+  } = useRulesStore();
 
   const handleAddRule = async () => {
     if (!name || !condition) {
@@ -98,21 +79,10 @@ export default function RulebookScreen() {
     }
 
     try {
-      const response = await apiRequest("POST", "/api/rules", {
-        name,
-        description,
-        condition,
-        action,
-        message,
-        enabled: true,
-      });
-
-      if (response.ok) {
-        setIsAdding(false);
-        setName("");
-        setDescription("");
-        fetchData();
-      }
+      await storeCreateRule({ name, description, condition, action, message });
+      setIsAdding(false);
+      setName("");
+      setDescription("");
     } catch (error) {
       AppLogger.error("Failed to add rule:", error);
       Alert.alert(t("error"), "Failed to save rule");
@@ -121,12 +91,7 @@ export default function RulebookScreen() {
 
   const toggleRule = async (rule: Rule) => {
     try {
-      const response = await apiRequest("PUT", `/api/rules/${rule.id}`, {
-        enabled: !rule.enabled,
-      });
-      if (response.ok) {
-        fetchData();
-      }
+      await storeToggleRule(rule.id);
     } catch (error) {
       AppLogger.error("Failed to toggle rule:", error);
     }
@@ -140,10 +105,7 @@ export default function RulebookScreen() {
         style: "destructive",
         onPress: async () => {
           try {
-            const response = await apiRequest("DELETE", `/api/rules/${id}`);
-            if (response.ok) {
-              fetchData();
-            }
+            await storeDeleteRule(id);
           } catch (error) {
             AppLogger.error("Failed to delete rule:", error);
           }
@@ -392,7 +354,8 @@ export default function RulebookScreen() {
                             { color: theme.textSecondary },
                           ]}
                         >
-                          {doc.type} • {doc.status}
+                          {((doc.metadata as Record<string, unknown>)
+                            ?.type as string) ?? "document"}
                         </ThemedText>
                       </View>
                     </View>

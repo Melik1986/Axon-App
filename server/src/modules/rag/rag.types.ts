@@ -55,7 +55,7 @@ export interface DocumentMetadata {
   type: "pdf" | "txt" | "docx" | "xlsx" | "other";
   size: string;
   uploadedAt: Date;
-  status: "indexed" | "processing" | "error";
+  status: "indexed" | "processing" | "error" | "ready";
   chunkCount?: number;
   errorMessage?: string;
 }

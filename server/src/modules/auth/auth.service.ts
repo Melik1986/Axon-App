@@ -165,7 +165,7 @@ export class AuthService implements OnModuleInit {
           if (decoded) {
             userInfo = decoded;
           }
-        } catch (e) {
+        } catch {
           AppLogger.warn(
             "Failed to decode id_token, falling back to userinfo endpoint",
           );
@@ -290,7 +290,7 @@ export class AuthService implements OnModuleInit {
 
       const passwordHash = await bcrypt.hash(password, 12);
 
-      const [newUser] = await this.db
+      const rows = await this.db
         .insert(users)
         .values({
           email: email.toLowerCase().trim(),
@@ -299,12 +299,15 @@ export class AuthService implements OnModuleInit {
         })
         .returning();
 
+      const newUser = rows[0];
+      if (!newUser) throw new Error("Failed to create user");
+
       const user: AuthUser = {
         id: newUser.id,
         email: newUser.email,
         name: newUser.name,
-        picture: newUser.picture,
-        replitId: newUser.replitId,
+        picture: newUser.picture ?? undefined,
+        replitId: newUser.replitId ?? undefined,
       };
 
       const session = this.createSession(user);
