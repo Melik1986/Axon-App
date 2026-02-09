@@ -2,7 +2,7 @@ import * as DocumentPicker from "expo-document-picker";
 import { Platform } from "react-native";
 import { localVectorStore, LocalDocument } from "./vector-store";
 import { embeddingService } from "./embedding-service";
-import { getApiUrl } from "../query-client";
+import { getApiUrl, authenticatedFetch } from "../query-client";
 import { AppLogger } from "../logger";
 
 interface ExtractedDocument {
@@ -98,17 +98,9 @@ export class DocumentIndexer {
 
       const url = new URL("/api/documents/upload", baseUrl);
 
-      // Use manual fetch with auth token (apiRequest doesn't support FormData)
-      const { useAuthStore } = await import("@/store/authStore");
-      const token = useAuthStore.getState().getAccessToken();
-      const headers: Record<string, string> = {};
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(url.toString(), {
+      // authenticatedFetch handles Bearer token + 401 retry
+      const response = await authenticatedFetch(url.toString(), {
         method: "POST",
-        headers,
         body: formData,
       });
 

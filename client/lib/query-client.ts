@@ -4,6 +4,64 @@ import { useAuthStore } from "@/store/authStore";
 
 export { getApiUrl };
 
+// ---------------------------------------------------------------------------
+// Auth helpers
+// ---------------------------------------------------------------------------
+
+/** Try to refresh the token once; returns new token or null. */
+async function tryRefreshToken(): Promise<string | null> {
+  const refreshed = await useAuthStore.getState().refreshSession();
+  if (refreshed) {
+    return useAuthStore.getState().getAccessToken();
+  }
+  return null;
+}
+
+/** Build Authorization header from current store. */
+function authHeaders(): Record<string, string> {
+  const token = useAuthStore.getState().getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ---------------------------------------------------------------------------
+// authenticatedFetch — single helper for all auth+retry needs
+// ---------------------------------------------------------------------------
+
+/**
+ * Wrapper around native `fetch` that:
+ * 1. Injects Bearer token automatically
+ * 2. On 401 — refreshes token once and retries
+ *
+ * Use this for streaming / FormData / any call that can't use apiRequest().
+ */
+export async function authenticatedFetch(
+  input: string | URL | RequestInfo,
+  init?: RequestInit,
+): Promise<Response> {
+  const headers = new Headers(init?.headers);
+  const token = useAuthStore.getState().getAccessToken();
+  if (token && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  let res = await fetch(input, { ...init, headers });
+
+  // 401 → try refresh once
+  if (res.status === 401) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      headers.set("Authorization", `Bearer ${newToken}`);
+      res = await fetch(input, { ...init, headers });
+    }
+  }
+
+  return res;
+}
+
+// ---------------------------------------------------------------------------
+// apiRequest — JSON convenience (existing API, now with retry)
+// ---------------------------------------------------------------------------
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -19,25 +77,39 @@ export async function apiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(route, baseUrl);
 
-  const headers: Record<string, string> = data
-    ? { "Content-Type": "application/json" }
-    : {};
+  const headers: Record<string, string> = {
+    ...authHeaders(),
+    ...(data ? { "Content-Type": "application/json" } : {}),
+  };
 
-  const token = useAuthStore.getState().getAccessToken();
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-
-  const res = await fetch(url, {
+  let res = await fetch(url, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
 
+  // 401 → refresh + retry once
+  if (res.status === 401) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(url, {
+        method,
+        headers,
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
+      });
+    }
+  }
+
   await throwIfResNotOk(res);
   return res;
 }
+
+// ---------------------------------------------------------------------------
+// React-Query integration
+// ---------------------------------------------------------------------------
 
 type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn: <T>(options: {
@@ -48,16 +120,7 @@ export const getQueryFn: <T>(options: {
     const baseUrl = getApiUrl();
     const url = new URL(queryKey.join("/") as string, baseUrl);
 
-    const headers: Record<string, string> = {};
-    const token = useAuthStore.getState().getAccessToken();
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
-    }
-
-    const res = await fetch(url, {
-      credentials: "include",
-      headers,
-    });
+    const res = await authenticatedFetch(url);
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;
