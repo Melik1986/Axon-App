@@ -31,12 +31,12 @@ import { AgentVisualizer, AgentState } from "@/components/AgentVisualizer";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
 import type { ToolCall, Attachment } from "@shared/types";
 import { useSettingsStore } from "@/store/settingsStore";
-import { useAuthStore } from "@/store/authStore";
+// Auth handled by authenticatedFetch from query-client
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useVoice } from "@/hooks/useVoice";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { getApiUrl } from "@/lib/query-client";
+import { getApiUrl, authenticatedFetch } from "@/lib/query-client";
 import { localStore } from "@/lib/local-store";
 import { AppLogger } from "@/lib/logger";
 
@@ -50,7 +50,7 @@ export default function ChatScreen() {
   const llmSettings = useSettingsStore((state) => state.llm);
   const erpSettings = useSettingsStore((state) => state.erp);
   const ragSettings = useSettingsStore((state) => state.rag);
-  const getAccessToken = useAuthStore((state) => state.getAccessToken);
+  // Auth handled by authenticatedFetch
 
   const [inputText, setInputText] = React.useState("");
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
@@ -120,13 +120,6 @@ export default function ChatScreen() {
 
     try {
       const baseUrl = getApiUrl();
-      const msgHeaders: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      const token = getAccessToken();
-      if (token) {
-        msgHeaders["Authorization"] = `Bearer ${token}`;
-      }
 
       // Read context from local SQLite for zero-storage payload
       const convId = currentConversationId as string;
@@ -136,9 +129,9 @@ export default function ChatScreen() {
         localStore.getEnabledSkills(),
       ]);
 
-      const response = await fetch(`${baseUrl}api/chat`, {
+      const response = await authenticatedFetch(`${baseUrl}api/chat`, {
         method: "POST",
-        headers: msgHeaders,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: userMessage.content,
           attachments: userMessage.attachments,
@@ -263,13 +256,7 @@ export default function ChatScreen() {
       setStreaming(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    inputText,
-    attachments,
-    currentConversationId,
-    isStreaming,
-    getAccessToken,
-  ]);
+  }, [inputText, attachments, currentConversationId, isStreaming]);
 
   const handleVoicePress = async () => {
     if (isRecording) {

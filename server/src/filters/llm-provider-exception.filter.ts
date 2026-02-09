@@ -19,11 +19,14 @@ export const LLM_PROVIDER_USER_MESSAGE =
 export function isLlmProviderError(exception: unknown): boolean {
   if (!exception || typeof exception !== "object") return false;
 
+  // NestJS HttpExceptions (e.g. UnauthorizedException from AuthGuard) are NOT LLM errors
+  if (exception instanceof HttpException) return false;
+
   const err = exception as Record<string, unknown>;
   const message = String(err.message ?? err.msg ?? "").toLowerCase();
   const name = String(err.name ?? "").toLowerCase();
 
-  // OpenAI SDK / fetch status codes
+  // OpenAI SDK / fetch status codes (these are from external LLM providers, NOT NestJS)
   const status = err.status as number | undefined;
   if (
     status === 401 ||

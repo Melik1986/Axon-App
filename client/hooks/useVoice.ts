@@ -9,8 +9,7 @@ import {
 } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
 import { Platform, Alert } from "react-native";
-import { getApiUrl } from "@/lib/query-client";
-import { useAuthStore } from "@/store/authStore";
+import { getApiUrl, authenticatedFetch } from "@/lib/query-client";
 import { useChatStore } from "@/store/chatStore";
 import { useSettingsStore } from "@/store/settingsStore";
 import { AppLogger } from "@/lib/logger";
@@ -36,7 +35,7 @@ export function useVoice() {
   const player = useAudioPlayer(""); // Empty source initially
 
   const { currentConversationId } = useChatStore();
-  // Auth token retrieved via useAuthStore.getState().getAccessToken() in sendRecording
+  // Auth handled by authenticatedFetch
   const { llm, erp, rag } = useSettingsStore();
 
   /**
@@ -161,41 +160,36 @@ export function useVoice() {
       }
 
       const baseUrl = getApiUrl();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
 
-      const token = useAuthStore.getState().getAccessToken();
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const serverResponse = await fetch(`${baseUrl}api/voice/message`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          audio: base64,
-          transcriptionModel: llm.transcriptionModel || "whisper-1",
-          llmSettings: {
-            provider: llm.provider,
-            baseUrl: llm.baseUrl,
-            apiKey: llm.apiKey,
-            modelName: llm.modelName,
-          },
-          erpSettings: {
-            provider: erp.provider,
-            baseUrl: erp.url,
-            username: erp.username,
-            password: erp.password,
-            apiKey: erp.apiKey,
-            apiType: erp.apiType,
-          },
-          ragSettings: {
-            provider: rag.provider,
-            qdrant: rag.qdrant,
-          },
-        }),
-      });
+      const serverResponse = await authenticatedFetch(
+        `${baseUrl}api/voice/message`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audio: base64,
+            transcriptionModel: llm.transcriptionModel || "whisper-1",
+            llmSettings: {
+              provider: llm.provider,
+              baseUrl: llm.baseUrl,
+              apiKey: llm.apiKey,
+              modelName: llm.modelName,
+            },
+            erpSettings: {
+              provider: erp.provider,
+              baseUrl: erp.url,
+              username: erp.username,
+              password: erp.password,
+              apiKey: erp.apiKey,
+              apiType: erp.apiType,
+            },
+            ragSettings: {
+              provider: rag.provider,
+              qdrant: rag.qdrant,
+            },
+          }),
+        },
+      );
 
       if (!serverResponse.ok) {
         const errorText = await serverResponse.text().catch(() => "");
