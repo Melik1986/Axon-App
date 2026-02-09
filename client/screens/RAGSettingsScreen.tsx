@@ -22,7 +22,7 @@ import { useTranslation } from "@/hooks/useTranslation";
 import { useBiometricAuth } from "@/hooks/useBiometricAuth";
 import { useProtectScreen } from "@/hooks/useProtectScreen";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { apiRequest, getApiUrl } from "@/lib/query-client";
+import { apiRequest, getApiUrl, authenticatedFetch } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
 
 export default function RAGSettingsScreen() {
@@ -52,7 +52,7 @@ export default function RAGSettingsScreen() {
     const fetchProviderSettings = async () => {
       try {
         const url = new URL("/api/documents/providers", getApiUrl());
-        const response = await fetch(url.toString());
+        const response = await authenticatedFetch(url.toString());
         if (response.ok) {
           const data = await response.json();
           const currentProvider = (data.current || "none") as RagProvider;
@@ -68,8 +68,9 @@ export default function RAGSettingsScreen() {
         setLoading(false);
       }
     };
-    fetchProviderSettings();
-  }, [rag, setRagSettings]);
+    void fetchProviderSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const providers: { id: RagProvider; name: string; description: string }[] = [
     {
