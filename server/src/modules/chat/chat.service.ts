@@ -307,10 +307,26 @@ export class ChatService {
       AppLogger.warn("RAG search failed:", ragError);
     }
 
-    // Build system message with RAG context
-    const systemMessage = ragContext
+    // Build system message with RAG context + user instructions from rules/skills
+    let systemMessage = ragContext
       ? `${SYSTEM_PROMPT}\n\n${ragContext}`
       : SYSTEM_PROMPT;
+
+    // Inject user-uploaded rule instructions (MD content) into system prompt
+    const ruleInstructions = (clientRules ?? [])
+      .filter((r) => r.content)
+      .map((r) => `### ${r.name}\n${r.content}`)
+      .join("\n\n");
+    const skillInstructions = (clientSkills ?? [])
+      .filter((s) => s.content)
+      .map((s) => `### ${s.name}\n${s.content}`)
+      .join("\n\n");
+    if (ruleInstructions) {
+      systemMessage += `\n\n## User Rules:\n${ruleInstructions}`;
+    }
+    if (skillInstructions) {
+      systemMessage += `\n\n## User Skills Context:\n${skillInstructions}`;
+    }
 
     // Build messages array for Vercel AI SDK (cap history + strip old images)
     const MAX_HISTORY_MESSAGES = 20;

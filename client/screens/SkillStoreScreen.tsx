@@ -12,6 +12,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
@@ -26,6 +28,7 @@ interface Skill {
   name: string;
   description: string | null;
   code: string;
+  content: string | null;
   enabled: boolean;
 }
 
@@ -54,23 +57,68 @@ export default function SkillStoreScreen() {
   const [code, setCode] = useState(
     "result = { success: true, message: 'Hello from skill' };",
   );
+  const [content, setContent] = useState("");
 
   useEffect(() => {
     void loadSkills();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const handleUploadMd = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["text/markdown", "text/plain", "application/octet-stream"],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.length) return;
+      const asset = result.assets[0];
+      if (!asset) return;
+
+      const text = await FileSystem.readAsStringAsync(asset.uri);
+      const fileName = (asset.name ?? "skill").replace(/\.[^.]+$/, "");
+      const ext = (asset.name ?? "").split(".").pop()?.toLowerCase();
+
+      const headingMatch = text.match(/^#\s+(.+)/m);
+      const firstLine = headingMatch?.[1] ?? text.split("\n")[0] ?? "";
+
+      setName(fileName);
+      setDescription(firstLine.slice(0, 120));
+
+      if (ext === "js" || ext === "ts") {
+        setCode(text);
+        setContent("");
+      } else {
+        setCode("result = { success: true, message: 'Instruction skill' };");
+        setContent(text);
+      }
+      setIsAdding(true);
+    } catch (error) {
+      AppLogger.error("Failed to pick file:", error);
+    }
+  };
+
+  const resetForm = () => {
+    setIsAdding(false);
+    setName("");
+    setDescription("");
+    setContent("");
+    setCode("result = { success: true, message: 'Hello from skill' };");
+  };
+
   const handleAddSkill = async () => {
-    if (!name || !code) {
+    if (!name || (!code && !content)) {
       Alert.alert(t("error"), t("configurationRequired"));
       return;
     }
 
     try {
-      await storeCreateSkill({ name, description, code });
-      setIsAdding(false);
-      setName("");
-      setDescription("");
+      await storeCreateSkill({
+        name,
+        description,
+        code: code || "result = { success: true };",
+        content: content || undefined,
+      });
+      resetForm();
     } catch (error) {
       AppLogger.error("Failed to add skill:", error);
     }
@@ -119,13 +167,31 @@ export default function SkillStoreScreen() {
         </View>
 
         {!isAdding ? (
-          <Button
-            onPress={() => setIsAdding(true)}
-            variant="outline"
-            style={styles.addBtn}
-          >
-            {t("createNewSkill")}
-          </Button>
+          <View style={styles.addRow}>
+            <Button
+              onPress={() => setIsAdding(true)}
+              variant="outline"
+              style={{ flex: 1 }}
+            >
+              {t("createNewSkill")}
+            </Button>
+            <Pressable
+              onPress={handleUploadMd}
+              style={[
+                styles.uploadBtn,
+                { backgroundColor: theme.backgroundSecondary },
+              ]}
+            >
+              <Ionicons
+                name="document-attach"
+                size={20}
+                color={theme.primary}
+              />
+              <ThemedText style={{ fontSize: 12, color: theme.primary }}>
+                .md
+              </ThemedText>
+            </Pressable>
+          </View>
         ) : (
           <View
             style={[
@@ -169,8 +235,26 @@ export default function SkillStoreScreen() {
               onChangeText={setCode}
             />
 
+            {content ? (
+              <>
+                <ThemedText style={styles.label}>
+                  MD Content ({content.length} chars)
+                </ThemedText>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.contentArea,
+                    { color: theme.text, borderColor: theme.border },
+                  ]}
+                  multiline
+                  value={content}
+                  onChangeText={setContent}
+                />
+              </>
+            ) : null}
+
             <View style={styles.formRow}>
-              <Button onPress={() => setIsAdding(false)} variant="outline">
+              <Button onPress={resetForm} variant="outline">
                 {t("cancel")}
               </Button>
               <Button onPress={handleAddSkill}>{t("saveSkill")}</Button>
@@ -213,15 +297,37 @@ export default function SkillStoreScreen() {
                 </View>
 
                 <View style={styles.cardFooter}>
-                  <ThemedText
-                    style={{
-                      fontSize: 10,
-                      color: theme.textTertiary,
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    ID: {skill.id.split("-")[0]}
-                  </ThemedText>
+                  <View style={{ flexDirection: "row", gap: 6 }}>
+                    <ThemedText
+                      style={{
+                        fontSize: 10,
+                        color: theme.textTertiary,
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      ID: {skill.id.split("-")[0]}
+                    </ThemedText>
+                    {skill.content ? (
+                      <View
+                        style={{
+                          backgroundColor: "#dbeafe",
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 4,
+                        }}
+                      >
+                        <ThemedText
+                          style={{
+                            color: "#1e40af",
+                            fontSize: 9,
+                            fontWeight: "bold",
+                          }}
+                        >
+                          MD
+                        </ThemedText>
+                      </View>
+                    ) : null}
+                  </View>
                   <Pressable onPress={() => deleteSkill(skill.id)}>
                     <Ionicons
                       name="trash-outline"
@@ -262,9 +368,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 4,
   },
-  addBtn: {
+  addRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
     marginHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
+    alignItems: "center",
+  },
+  uploadBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: BorderRadius.md,
   },
   form: {
     margin: Spacing.lg,
@@ -290,6 +407,12 @@ const styles = StyleSheet.create({
   },
   textArea: {
     height: 120,
+    textAlignVertical: "top",
+    fontFamily: "monospace",
+    fontSize: 12,
+  },
+  contentArea: {
+    height: 140,
     textAlignVertical: "top",
     fontFamily: "monospace",
     fontSize: 12,

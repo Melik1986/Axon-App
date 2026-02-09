@@ -13,6 +13,7 @@ interface RulesState {
     condition: string;
     action: string;
     message?: string;
+    content?: string;
     priority?: number;
   }) => Promise<LocalRule>;
   updateRule: (
@@ -25,6 +26,7 @@ interface RulesState {
         | "condition"
         | "action"
         | "message"
+        | "content"
         | "priority"
         | "enabled"
       >
