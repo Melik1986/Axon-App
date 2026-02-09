@@ -11,6 +11,8 @@ import {
   RagSettingsRequest,
 } from "./rag.types";
 import { randomUUID } from "crypto";
+import * as dns from "dns/promises";
+import * as net from "net";
 import { AppLogger } from "../../utils/logger";
 import { EphemeralClientPoolService } from "../../services/ephemeral-client-pool.service";
 
@@ -20,11 +22,77 @@ export class RagService {
   // Documents are stored in user's RAG provider (Qdrant/Supabase)
   // OpenAI client is created per-request via EphemeralClientPoolService
 
+  /** CIDR ranges that must never be fetched (SSRF protection) */
+  private static readonly BLOCKED_CIDRS = [
+    "0.0.0.0/8",
+    "10.0.0.0/8",
+    "100.64.0.0/10",
+    "127.0.0.0/8",
+    "169.254.0.0/16",
+    "172.16.0.0/12",
+    "192.0.0.0/24",
+    "192.168.0.0/16",
+    "198.18.0.0/15",
+    "::1/128",
+    "fc00::/7",
+    "fe80::/10",
+  ];
+
   constructor(
     @Inject(ConfigService) private configService: ConfigService,
     @Inject(EphemeralClientPoolService)
     private ephemeralClientPool: EphemeralClientPoolService,
   ) {}
+
+  /**
+   * Validate URL against SSRF: only https allowed, resolve hostname
+   * and block private/link-local/loopback IPs.
+   */
+  private async assertSafeUrl(url: string): Promise<void> {
+    const parsed = new URL(url);
+
+    if (parsed.protocol !== "https:") {
+      throw new Error(
+        `SSRF blocked: only https URLs are allowed (got ${parsed.protocol})`,
+      );
+    }
+
+    // Resolve hostname to IP(s) and check each
+    const addresses = await dns.resolve(parsed.hostname);
+    for (const addr of addresses) {
+      if (net.isIP(addr) && this.isPrivateIp(addr)) {
+        throw new Error(
+          `SSRF blocked: ${parsed.hostname} resolves to private IP`,
+        );
+      }
+    }
+  }
+
+  private isPrivateIp(ip: string): boolean {
+    // IPv4 checks
+    if (net.isIPv4(ip)) {
+      const parts = ip.split(".").map(Number);
+      const [a, b] = parts;
+      if (a === 0) return true;
+      if (a === 10) return true;
+      if (a === 127) return true;
+      if (a === 169 && b === 254) return true;
+      if (a === 172 && b !== undefined && b >= 16 && b <= 31) return true;
+      if (a === 192 && b === 168) return true;
+      if (a === 192 && b === 0 && parts[2] === 0) return true;
+      if (a === 100 && b !== undefined && b >= 64 && b <= 127) return true;
+      if (a === 198 && b !== undefined && (b === 18 || b === 19)) return true;
+    }
+    // IPv6 checks
+    if (net.isIPv6(ip)) {
+      const normalized = ip.toLowerCase();
+      if (normalized === "::1") return true;
+      if (normalized.startsWith("fc") || normalized.startsWith("fd"))
+        return true;
+      if (normalized.startsWith("fe80")) return true;
+    }
+    return false;
+  }
 
   getProviders(): { id: RagProviderType; name: string; configured: boolean }[] {
     // Stateless: providers are configured per-request
@@ -299,7 +367,8 @@ export class RagService {
     ragSettings?: RagSettingsRequest,
   ) {
     try {
-      const response = await fetch(url);
+      await this.assertSafeUrl(url);
+      const response = await fetch(url, { redirect: "error" });
       if (!response.ok) {
         throw new Error(`Failed to fetch: ${response.status}`);
       }
