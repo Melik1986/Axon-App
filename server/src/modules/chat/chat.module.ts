@@ -13,6 +13,15 @@ import { ErpModule } from "../erp/erp.module";
 import { AuthModule } from "../auth/auth.module";
 import { RulebookModule } from "../rules/rulebook.module";
 import { SkillsModule } from "../skills/skill.module";
+import { PromptBuilderService } from "./prompt-builder.service";
+import { AttachmentProcessorService } from "./attachment-processor.service";
+import { LlmProviderFactory } from "./llm-provider.factory";
+import { StreamEmitterService } from "./stream-emitter.service";
+import { ToolExecutionPipeline } from "./tool-execution.pipeline";
+import { ChatStreamOrchestrator } from "./chat-stream.orchestrator";
+import { VoiceStreamOrchestrator } from "./voice-stream.orchestrator";
+import { DiffPreviewService } from "./diff-preview.service";
+import { VerificationPipeline } from "./verification-pipeline.service";
 
 @Module({
   imports: [
@@ -31,6 +40,15 @@ import { SkillsModule } from "../skills/skill.module";
     CoveWorkflowService,
     PromptInjectionGuard,
     GuardianGuard,
+    PromptBuilderService,
+    AttachmentProcessorService,
+    LlmProviderFactory,
+    StreamEmitterService,
+    ToolExecutionPipeline,
+    ChatStreamOrchestrator,
+    VoiceStreamOrchestrator,
+    DiffPreviewService,
+    VerificationPipeline,
   ],
 })
 export class ChatModule {}
