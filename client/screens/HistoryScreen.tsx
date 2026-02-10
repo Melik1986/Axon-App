@@ -150,15 +150,20 @@ export default function HistoryScreen() {
     [navigation],
   );
 
-  const handleNewChat = useCallback(() => {
+  const handleNewChat = useCallback(async () => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-    navigation.navigate("ChatTab", {
-      screen: "Chat",
-      params: {},
-    } as never);
-  }, [navigation]);
+    try {
+      const newConv = await localStore.createConversation(t("newChat"));
+      navigation.navigate("ChatTab", {
+        screen: "Chat",
+        params: { conversationId: newConv.id },
+      } as never);
+    } catch (error) {
+      AppLogger.error("Failed to create new conversation:", error);
+    }
+  }, [navigation, t]);
 
   const formatDate = useCallback(
     (ts: number | string) => {
