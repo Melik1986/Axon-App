@@ -6,6 +6,7 @@ export interface ErpConfig {
   username?: string;
   password?: string;
   apiKey?: string;
+  db?: string;
   apiType?: "rest" | "odata" | "graphql";
   openApiSpecUrl?: string;
 }

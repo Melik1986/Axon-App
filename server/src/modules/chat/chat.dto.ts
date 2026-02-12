@@ -8,8 +8,10 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 import { LlmSettings } from "../llm/llm.types";
-import { ErpConfig } from "../erp/erp.types";
+import { ErpSettingsDto } from "../erp/erp.dto";
 import { RagSettingsRequest } from "../rag/rag.types";
+
+export { ErpSettingsDto };
 
 export class LlmSettingsDto implements LlmSettings {
   @IsIn(["replit", "openai", "groq", "ollama", "custom"])
@@ -26,32 +28,6 @@ export class LlmSettingsDto implements LlmSettings {
   @IsOptional()
   @IsString()
   modelName?: string;
-}
-
-export class ErpSettingsDto implements Partial<ErpConfig> {
-  @IsOptional()
-  @IsIn(["demo", "1c", "sap", "odoo", "custom"])
-  provider?: "demo" | "1c" | "sap" | "odoo" | "custom";
-
-  @IsOptional()
-  @IsString()
-  baseUrl?: string;
-
-  @IsOptional()
-  @IsString()
-  username?: string;
-
-  @IsOptional()
-  @IsString()
-  password?: string;
-
-  @IsOptional()
-  @IsString()
-  apiKey?: string;
-
-  @IsOptional()
-  @IsIn(["rest", "odata", "graphql"])
-  apiType?: "rest" | "odata" | "graphql";
 }
 
 export class QdrantSettingsDto {

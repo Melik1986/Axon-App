@@ -13,13 +13,20 @@
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "useDefineForClassFields": false,
+    "allowJs": true,
     "paths": {
       "@/*": ["./client/*"],
       "@shared/*": ["./shared/*"]
     },
     "types": ["node", "multer"]
   },
-  "include": ["**/*.ts", "**/*.tsx", "**/*.d.ts"],
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.d.ts",
+    "**/*.js",
+    "eslint.config.js"
+  ],
   "exclude": [
     "node_modules",
     "build",

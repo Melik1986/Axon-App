@@ -1,16 +1,18 @@
-const { defineConfig } = require("eslint/config");
-const expoConfig = require("eslint-config-expo/flat");
-const eslintPluginPrettierRecommended = require("eslint-plugin-prettier/recommended");
-const securityPlugin = require("eslint-plugin-security");
-const deMorganPlugin = require("eslint-plugin-de-morgan");
-const tseslint = require("typescript-eslint");
+import { defineConfig } from "eslint/config";
+import expoConfig from "eslint-config-expo/flat.js";
+import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
+import securityPlugin from "eslint-plugin-security";
+import deMorganPlugin, {
+  configs as deMorganConfigs,
+} from "eslint-plugin-de-morgan";
+import { configs as tseslintConfigs } from "typescript-eslint";
 
-module.exports = defineConfig([
+export default defineConfig([
   // Base configurations
   expoConfig,
   eslintPluginPrettierRecommended,
   securityPlugin.configs.recommended,
-  ...tseslint.configs.recommended,
+  ...tseslintConfigs.recommended,
 
   // De Morgan Plugin (Security)
   {
@@ -18,7 +20,7 @@ module.exports = defineConfig([
       "de-morgan": deMorganPlugin,
     },
     rules: {
-      ...deMorganPlugin.configs.recommended.rules,
+      ...deMorganConfigs.recommended.rules,
     },
   },
 

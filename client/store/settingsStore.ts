@@ -25,6 +25,7 @@ interface ERPSettings {
   username: string;
   password: string;
   apiKey: string;
+  db: string;
   specUrl: string;
 }
 
@@ -88,6 +89,7 @@ const defaultERP: ERPSettings = {
   username: "",
   password: "",
   apiKey: "",
+  db: "",
   specUrl: "",
 };
 

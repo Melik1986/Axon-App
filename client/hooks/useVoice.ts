@@ -183,10 +183,12 @@ export function useVoice() {
             erpSettings: {
               provider: erp.provider,
               baseUrl: erp.url,
+              db: erp.db,
               username: erp.username,
               password: erp.password,
               apiKey: erp.apiKey,
               apiType: erp.apiType,
+              openApiSpecUrl: erp.specUrl,
             },
             ragSettings: {
               provider: rag.provider,

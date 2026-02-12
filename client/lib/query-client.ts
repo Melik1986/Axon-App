@@ -70,6 +70,17 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+function normalizeApiRoute(route: string): string {
+  if (/^https?:\/\//i.test(route)) return route;
+  const trimmed = route.trim();
+  if (!trimmed) return "/api";
+  const withoutLeadingSlash = trimmed.startsWith("/")
+    ? trimmed.slice(1)
+    : trimmed;
+  if (withoutLeadingSlash.startsWith("api/")) return `/${withoutLeadingSlash}`;
+  return `/api/${withoutLeadingSlash}`;
+}
+
 /**
  * Make an API request with automatic auth token injection and retry on 401.
  * Throws typed ApiErrorResponse on error.
@@ -80,7 +91,7 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const baseUrl = getApiUrl();
-  const url = new URL(route, baseUrl);
+  const url = new URL(normalizeApiRoute(route), baseUrl);
 
   const headers: Record<string, string> = {
     ...authHeaders(),

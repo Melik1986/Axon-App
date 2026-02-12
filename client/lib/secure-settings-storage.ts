@@ -26,6 +26,8 @@ export const SETTINGS_HIGH_SEC_PATHS = [
   "erp.apiKey",
   "erp.username",
   "erp.password",
+  "erp.apiKey",
+  "erp.db",
   "erp.specUrl",
 ];
 
