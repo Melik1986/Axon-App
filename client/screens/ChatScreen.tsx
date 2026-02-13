@@ -38,7 +38,8 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useVoice } from "@/hooks/useVoice";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { getApiUrl, authenticatedFetch } from "@/lib/query-client";
+import { secureApiRequest } from "@/lib/query-client";
+import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 import { localStore } from "@/lib/local-store";
 import { AppLogger } from "@/lib/logger";
 
@@ -124,21 +125,24 @@ export default function ChatScreen() {
           ? `Previous summary: ${existingSummary}\n\nNew messages to incorporate:\n${textToSummarize}\n\nUpdate the summary in 2-3 sentences.`
           : `Summarize this conversation in 2-3 sentences:\n${textToSummarize}`;
 
-        const baseUrl = getApiUrl();
-        const resp = await authenticatedFetch(`${baseUrl}api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const resp = await secureApiRequest(
+          "POST",
+          "chat",
+          {
             content: prompt,
             history: [],
             llmSettings: {
               provider: llmSettings.provider,
               baseUrl: llmSettings.baseUrl,
-              apiKey: llmSettings.apiKey,
               modelName: llmSettings.modelName,
             },
-          }),
-        });
+          },
+          {
+            llmKey: llmSettings.apiKey,
+            llmProvider: llmSettings.provider,
+            llmBaseUrl: llmSettings.baseUrl,
+          } as EphemeralCredentials,
+        );
 
         if (!resp.ok) return;
         const respText = await resp.text();
@@ -195,8 +199,6 @@ export default function ChatScreen() {
       }
 
       try {
-        const baseUrl = getApiUrl();
-
         // Read context from local SQLite for zero-storage payload
         const convId = currentConversationId as string;
         const RECENT_WINDOW = 6;
@@ -209,10 +211,10 @@ export default function ChatScreen() {
             localStore.getConversationSummary(convId),
           ]);
 
-        const response = await authenticatedFetch(`${baseUrl}api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const response = await secureApiRequest(
+          "POST",
+          "chat",
+          {
             content: userMessage.content,
             attachments: userMessage.attachments,
             history,
@@ -238,7 +240,6 @@ export default function ChatScreen() {
             llmSettings: {
               provider: llmSettings.provider,
               baseUrl: llmSettings.baseUrl,
-              apiKey: llmSettings.apiKey,
               modelName: llmSettings.modelName,
             },
             erpSettings: {
@@ -246,8 +247,6 @@ export default function ChatScreen() {
               baseUrl: erpSettings.url,
               db: erpSettings.db,
               username: erpSettings.username,
-              password: erpSettings.password,
-              apiKey: erpSettings.apiKey,
               apiType: erpSettings.apiType,
               openApiSpecUrl: erpSettings.specUrl,
             },
@@ -266,8 +265,20 @@ export default function ChatScreen() {
               key: f.key,
               value: f.value,
             })),
-          }),
-        });
+          },
+          {
+            llmKey: llmSettings.apiKey,
+            llmProvider: llmSettings.provider,
+            llmBaseUrl: llmSettings.baseUrl,
+            erpProvider: erpSettings.provider,
+            erpBaseUrl: erpSettings.url,
+            erpApiType: erpSettings.apiType,
+            erpDb: erpSettings.db,
+            erpUsername: erpSettings.username,
+            erpPassword: erpSettings.password || undefined,
+            erpApiKey: erpSettings.apiKey || undefined,
+          } as EphemeralCredentials,
+        );
 
         if (!response.ok) {
           const errorBody = await response.text();

@@ -2,6 +2,10 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { getApiUrl } from "@/lib/api-config";
 import { useAuthStore } from "@/store/authStore";
 import { extractErrorFromResponse } from "@/lib/error-handler";
+import {
+  encryptCredentialsToJWE,
+  EphemeralCredentials,
+} from "@/lib/jwe-encryption";
 
 export { getApiUrl };
 
@@ -81,6 +85,83 @@ function normalizeApiRoute(route: string): string {
   return `/api/${withoutLeadingSlash}`;
 }
 
+// ---------------------------------------------------------------------------
+// secureApiRequest — JSON with JWE transport for secrets + session token
+// ---------------------------------------------------------------------------
+
+let cachedPublicKey: string | null = null;
+let cachedSessionToken: string | null = null;
+
+async function getServerPublicKey(): Promise<string> {
+  if (cachedPublicKey) return cachedPublicKey;
+  const baseUrl = getApiUrl();
+  const res = await fetch(new URL("/api/auth/public-key", baseUrl));
+  if (!res.ok) {
+    throw new Error("Failed to fetch server public key");
+  }
+  const { publicKey } = (await res.json()) as { publicKey: string };
+  cachedPublicKey = publicKey;
+  return publicKey;
+}
+
+export async function secureApiRequest(
+  method: string,
+  route: string,
+  data?: unknown | undefined,
+  credentialsOverride?: EphemeralCredentials,
+): Promise<Response> {
+  const baseUrl = getApiUrl();
+  const url = new URL(normalizeApiRoute(route), baseUrl);
+
+  const headers: Record<string, string> = {
+    ...authHeaders(),
+    ...(data ? { "Content-Type": "application/json" } : {}),
+  };
+
+  try {
+    if (credentialsOverride) {
+      if (cachedSessionToken) {
+        headers["x-session-token"] = cachedSessionToken;
+      } else {
+        const pub = await getServerPublicKey();
+        const jwe = await encryptCredentialsToJWE(credentialsOverride, pub);
+        headers["x-encrypted-config"] = jwe;
+      }
+    }
+  } catch {
+    // If JWE setup fails, we still attempt the request without secrets
+    // Upstream should reject if secrets are required.
+  }
+
+  let res = await fetch(url, {
+    method,
+    headers,
+    body: data ? JSON.stringify(data) : undefined,
+    credentials: "include",
+  });
+
+  if (res.status === 401) {
+    const newToken = await tryRefreshToken();
+    if (newToken) {
+      headers["Authorization"] = `Bearer ${newToken}`;
+      res = await fetch(url, {
+        method,
+        headers,
+        body: data ? JSON.stringify(data) : undefined,
+        credentials: "include",
+      });
+    }
+  }
+
+  const newSessionToken = res.headers.get("x-session-token");
+  if (newSessionToken) {
+    cachedSessionToken = newSessionToken;
+  }
+
+  await throwIfResNotOk(res);
+  return res;
+}
+
 /**
  * Make an API request with automatic auth token injection and retry on 401.
  * Throws typed ApiErrorResponse on error.
@@ -128,6 +209,7 @@ export async function apiRequest(
 // ---------------------------------------------------------------------------
 
 type UnauthorizedBehavior = "returnNull" | "throw";
+
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =

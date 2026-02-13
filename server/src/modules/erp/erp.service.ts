@@ -136,20 +136,31 @@ export class ErpService implements OnModuleInit {
       return { success: false, steps };
     }
 
+    // pingOk unused, but we keep the ping attempt for logging
     try {
+      AppLogger.info("ErpService.testConnection: Pinging base URL", {
+        url: config.baseUrl,
+      });
       const pingRes = await fetch(config.baseUrl, { method: "GET" });
       steps.push({ name: "ping", ok: pingRes.ok });
     } catch (e) {
+      AppLogger.warn("ErpService.testConnection: Ping failed", e);
       steps.push({ name: "ping", ok: false, error: String(e) });
-      return { success: false, steps };
+      // We continue even if ping fails, as some ERPs block root path
     }
 
     try {
+      AppLogger.info("ErpService.testConnection: Testing adapter auth", {
+        provider: config.provider,
+        username: config.username,
+        hasPassword: !!config.password,
+      });
       const adapter = this.getAdapter(customConfig);
       const ok = adapter.testConnection ? await adapter.testConnection() : true;
       steps.push({ name: "auth_read", ok });
       return { success: ok, steps };
     } catch (e) {
+      AppLogger.error("ErpService.testConnection: Adapter test failed", e);
       steps.push({ name: "auth_read", ok: false, error: String(e) });
       return { success: false, steps };
     }

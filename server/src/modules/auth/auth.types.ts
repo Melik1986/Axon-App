@@ -8,13 +8,24 @@ export interface AuthUser {
   replitId?: string | null;
 }
 
+export interface EphemeralCredentials {
+  llmKey?: string;
+  llmProvider?: string;
+  llmBaseUrl?: string;
+  dbUrl?: string;
+  dbKey?: string;
+  erpProvider?: string;
+  erpBaseUrl?: string;
+  erpApiType?: string;
+  erpDb?: string;
+  erpUsername?: string;
+  erpPassword?: string;
+  erpApiKey?: string;
+}
+
 export interface AuthenticatedRequest extends Request {
   user: AuthUser;
-  ephemeralCredentials?: {
-    llmKey?: string;
-    llmProvider?: string;
-    llmBaseUrl?: string;
-  };
+  ephemeralCredentials?: EphemeralCredentials;
 }
 
 export interface AuthSession {
@@ -28,22 +39,9 @@ export interface GoogleTokenPayload {
   email: string;
   email_verified: boolean;
   name: string;
-  picture: string;
-  given_name?: string;
-  family_name?: string;
-}
-
-export interface GoogleAuthRequest {
-  idToken: string;
+  picture?: string;
 }
 
 export interface RefreshRequest {
   refreshToken: string;
-}
-
-export interface JwtPayload {
-  sub: string;
-  email: string;
-  iat?: number;
-  exp?: number;
 }

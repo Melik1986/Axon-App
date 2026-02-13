@@ -4,13 +4,18 @@ import { AppLogger } from "../utils/logger";
 
 interface SessionTokenEntry {
   credentials: {
-    llmKey: string;
-    llmProvider: string;
+    llmKey?: string;
+    llmProvider?: string;
     llmBaseUrl?: string;
     dbUrl?: string;
     dbKey?: string;
-    erpUrl?: string;
-    erpType?: string;
+    erpProvider?: string;
+    erpBaseUrl?: string;
+    erpApiType?: string;
+    erpDb?: string;
+    erpUsername?: string;
+    erpPassword?: string;
+    erpApiKey?: string;
   };
   expiresAt: number;
 }

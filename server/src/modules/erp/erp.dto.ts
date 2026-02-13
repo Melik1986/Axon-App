@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString } from "class-validator";
+import { IsIn, IsOptional, IsString, IsEmpty } from "class-validator";
 import { ErpConfig } from "./erp.types";
 
 export class ErpSettingsDto implements Partial<ErpConfig> {
@@ -18,10 +18,12 @@ export class ErpSettingsDto implements Partial<ErpConfig> {
   @IsString()
   username?: string;
 
+  @IsEmpty({ message: "password must NOT be provided in body (use JWE)" })
   @IsOptional()
   @IsString()
   password?: string;
 
+  @IsEmpty({ message: "apiKey must NOT be provided in body (use JWE)" })
   @IsOptional()
   @IsString()
   apiKey?: string;

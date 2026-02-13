@@ -1,4 +1,4 @@
-import { Test, TestingModule } from "@nestjs/testing";
+// import { Test, TestingModule } from "@nestjs/testing";
 import { type Tool } from "ai";
 import { VerificationPipeline } from "./verification-pipeline.service";
 import { CoveWorkflowService } from "./cove-workflow.service";
@@ -12,7 +12,7 @@ describe("VerificationPipeline", () => {
   let toolRegistry: jest.Mocked<ToolRegistryService>;
 
   beforeEach(async () => {
-    const mockCoveWorkflow = {
+    const mockCoveWorkflow: jest.Mocked<CoveWorkflowService> = {
       needsVerification: jest.fn().mockReturnValue(true),
       getVerificationTools: jest
         .fn()
@@ -34,9 +34,9 @@ describe("VerificationPipeline", () => {
           execute: jest.fn().mockResolvedValue("Invoice created"),
         } as unknown as Tool<unknown, unknown>,
       }),
-    };
+    } as unknown as jest.Mocked<ToolRegistryService>;
 
-    const mockConfidenceScorer = {
+    const mockConfidenceScorer: jest.Mocked<ConfidenceScorerService> = {
       calculateConfidence: jest.fn().mockReturnValue(0.87),
     };
 
@@ -45,37 +45,20 @@ describe("VerificationPipeline", () => {
         before: { status: "Not created" },
         after: { status: "Created" },
       }),
-    };
+      previewCreateInvoice: jest.fn(),
+      previewGetStock: jest.fn(),
+      previewUpdateProduct: jest.fn(),
+      previewDeleteDocument: jest.fn(),
+    } as unknown as jest.Mocked<DiffPreviewService>;
 
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [
-        VerificationPipeline,
-        {
-          provide: CoveWorkflowService,
-          useValue: mockCoveWorkflow,
-        },
-        {
-          provide: ToolRegistryService,
-          useValue: mockToolRegistry,
-        },
-        {
-          provide: ConfidenceScorerService,
-          useValue: mockConfidenceScorer,
-        },
-        {
-          provide: DiffPreviewService,
-          useValue: mockDiffPreview,
-        },
-      ],
-    }).compile();
-
-    service = module.get<VerificationPipeline>(VerificationPipeline);
-    coveWorkflow = module.get(
-      CoveWorkflowService,
-    ) as jest.Mocked<CoveWorkflowService>;
-    toolRegistry = module.get(
-      ToolRegistryService,
-    ) as jest.Mocked<ToolRegistryService>;
+    service = new VerificationPipeline(
+      mockCoveWorkflow,
+      mockToolRegistry,
+      mockConfidenceScorer,
+      mockDiffPreview,
+    );
+    coveWorkflow = mockCoveWorkflow;
+    toolRegistry = mockToolRegistry;
   });
 
   it("should be defined", () => {

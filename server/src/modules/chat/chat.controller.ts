@@ -14,6 +14,7 @@ import { ChatRequestDto, VoiceMessageDto } from "./chat.dto";
 import { RateLimitGuard } from "../../guards/rate-limit.guard";
 import { AuthGuard } from "../auth/auth.guard";
 import { AuthenticatedRequest } from "../auth/auth.types";
+import { RequestSignatureGuard } from "../../guards/request-signature.guard";
 
 @ApiTags("chat")
 @Controller("chat")
@@ -27,7 +28,7 @@ export class ChatController {
    * Server processes, streams response, stores nothing.
    */
   @Post()
-  @UseGuards(AuthGuard, RateLimitGuard)
+  @UseGuards(AuthGuard, RateLimitGuard, RequestSignatureGuard)
   @ApiOperation({ summary: "Send message (stateless SSE stream)" })
   @ApiBody({ type: ChatRequestDto })
   @ApiResponse({ status: 200, description: "SSE stream of response" })
@@ -54,12 +55,30 @@ export class ChatController {
       ...(credentials?.llmBaseUrl && { baseUrl: credentials.llmBaseUrl }),
     } as typeof body.llmSettings;
 
+    const erpSettings = {
+      ...body.erpSettings,
+      ...(credentials?.erpProvider && {
+        provider: credentials.erpProvider as
+          | "demo"
+          | "1c"
+          | "sap"
+          | "odoo"
+          | "custom",
+      }),
+      ...(credentials?.erpBaseUrl && { baseUrl: credentials.erpBaseUrl }),
+      ...(credentials?.erpApiType && {
+        apiType: credentials.erpApiType as "rest" | "odata" | "graphql",
+      }),
+      ...(credentials?.erpDb && { db: credentials.erpDb }),
+      ...(credentials?.erpUsername && { username: credentials.erpUsername }),
+    } as typeof body.erpSettings;
+
     await this.chatService.streamResponse(
       req.user.id,
       body.content,
       res,
       llmSettings,
-      body.erpSettings,
+      erpSettings,
       body.ragSettings,
       body.attachments,
       body.history,

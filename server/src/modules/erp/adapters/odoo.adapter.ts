@@ -232,7 +232,44 @@ export class OdooAdapter implements ErpAdapter {
   }
 
   async createInvoice(request: CreateInvoiceRequest): Promise<Invoice> {
-    // 1. Create Sale Order (Odoo standard flow)
+    const idempotencyKey =
+      request.idempotencyKey ||
+      this.computeDeterministicKey(
+        request.customerName || "",
+        request.items,
+        request.comment || "",
+      );
+    try {
+      const existingIdsUnknown = await this.executeKw("sale.order", "search", [
+        [["client_order_ref", "=", idempotencyKey]],
+      ]);
+      const existingIds = this.asArray(existingIdsUnknown);
+      const existingId =
+        existingIds.length > 0 ? this.getNumber(existingIds[0]) : undefined;
+      if (existingId) {
+        const orderReadUnknown = await this.executeKw("sale.order", "read", [
+          [existingId],
+          ["name", "date_order", "amount_total", "state"],
+        ]);
+        const orders = this.asArray(orderReadUnknown);
+        const order = this.asRecord(orders[0]);
+        return {
+          id: String(existingId),
+          number: this.getString(order.name) ?? `SO-${existingId}`,
+          date: this.getString(order.date_order) ?? new Date().toISOString(),
+          customerName: request.customerName,
+          items: request.items.map((i) => ({
+            ...i,
+            productId: "",
+            amount: i.quantity * i.price,
+          })),
+          total: this.getNumber(order.amount_total) ?? 0,
+          status: "draft",
+          comment: request.comment,
+        };
+      }
+    } catch {}
+
     // Note: Creating 'account.move' directly is complex. Sale Order is safer.
 
     // Find customer by name or create one (simplified)
@@ -263,6 +300,7 @@ export class OdooAdapter implements ErpAdapter {
         partner_id: customerId,
         order_line: orderLines,
         note: request.comment,
+        client_order_ref: idempotencyKey,
       },
     ]);
 
@@ -293,6 +331,31 @@ export class OdooAdapter implements ErpAdapter {
       status: "draft", // sale order is draft quotation by default
       comment: request.comment,
     };
+  }
+
+  private computeDeterministicKey(
+    customerName: string,
+    items: { productName: string; quantity: number; price: number }[],
+    comment: string,
+  ): string {
+    const payload = JSON.stringify({
+      customerName,
+      items: items
+        .map((i) => ({
+          n: i.productName,
+          q: i.quantity,
+          p: i.price,
+        }))
+        .sort((a, b) => (a.n > b.n ? 1 : a.n < b.n ? -1 : 0)),
+      comment,
+    });
+    // Simple FNV-1a hash for deterministic short key
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < payload.length; i++) {
+      h ^= payload.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return `AXON-${(h >>> 0).toString(16)}`;
   }
 
   private async findOrCreatePartner(name: string): Promise<number> {

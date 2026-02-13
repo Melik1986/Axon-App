@@ -51,4 +51,5 @@ export interface CreateInvoiceRequest {
   customerName?: string;
   items: Omit<InvoiceItem, "productId" | "amount">[];
   comment?: string;
+  idempotencyKey?: string;
 }
