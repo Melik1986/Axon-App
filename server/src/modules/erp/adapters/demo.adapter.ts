@@ -15,31 +15,31 @@ export class DemoAdapter implements ErpAdapter {
     const mockStock: StockItem[] = [
       {
         id: "stock-1",
-        name: "Кофе арабика 1кг",
+        name: "Coffee Arabica 1kg",
         sku: "COFFEE-001",
         quantity: 150,
-        unit: "шт",
+        unit: "pcs",
       },
       {
         id: "stock-2",
-        name: "Молоко 1л",
+        name: "Milk 1L",
         sku: "MILK-001",
         quantity: 80,
-        unit: "шт",
+        unit: "pcs",
       },
       {
         id: "stock-3",
-        name: "Сахар 1кг",
+        name: "Sugar 1kg",
         sku: "SUGAR-001",
         quantity: 200,
-        unit: "шт",
+        unit: "pcs",
       },
       {
         id: "stock-4",
-        name: "Печенье шоколадное",
+        name: "Chocolate Cookies",
         sku: "COOKIE-001",
         quantity: 45,
-        unit: "уп",
+        unit: "pack",
       },
     ];
 
@@ -56,23 +56,29 @@ export class DemoAdapter implements ErpAdapter {
     const mockProducts: Product[] = [
       {
         id: "prod-1",
-        name: "Кофе арабика 1кг",
+        name: "Coffee Arabica 1kg",
         sku: "COFFEE-001",
         price: 1200,
+        quantity: 150,
+        unit: "pcs",
         isService: false,
       },
       {
         id: "prod-2",
-        name: "Молоко 1л",
+        name: "Milk 1L",
         sku: "MILK-001",
         price: 90,
+        quantity: 80,
+        unit: "pcs",
         isService: false,
       },
       {
         id: "prod-3",
-        name: "Услуга доставки",
+        name: "Delivery Service",
         sku: "DELIVERY",
         price: 500,
+        quantity: 0,
+        unit: "service",
         isService: true,
       },
     ];
@@ -97,9 +103,9 @@ export class DemoAdapter implements ErpAdapter {
 
     return {
       id: `inv-${Date.now()}`,
-      number: `РТУ-${String(Date.now()).slice(-6)}`,
+      number: `INV-${String(Date.now()).slice(-6)}`,
       date: new Date().toISOString(),
-      customerName: request.customerName || "Покупатель",
+      customerName: request.customerName || "Customer",
       items,
       total: items.reduce((sum, item) => sum + item.amount, 0),
       status: "draft",

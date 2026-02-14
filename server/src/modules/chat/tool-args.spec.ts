@@ -7,8 +7,9 @@ describe("parseToolArgs (Data Mapper)", () => {
       expect(result).toEqual({ product_name: "кофе" });
     });
 
-    it("throws on missing required field", () => {
-      expect(() => parseToolArgs("get_stock", {})).toThrow();
+    it("accepts empty payload for full stock report", () => {
+      const result = parseToolArgs("get_stock", {});
+      expect(result).toEqual({});
     });
 
     it("throws on wrong type (number instead of string)", () => {

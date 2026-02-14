@@ -12,6 +12,7 @@ import { Platform, Alert } from "react-native";
 import { secureApiRequest } from "@/lib/query-client";
 import { useChatStore } from "@/store/chatStore";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useSpendingStore } from "@/store/spendingStore";
 import { AppLogger } from "@/lib/logger";
 import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 import {
@@ -40,9 +41,13 @@ export function useVoice() {
   const recorderState = useAudioRecorderState(audioRecorder);
   const player = useAudioPlayer(""); // Empty source initially
 
-  const { currentConversationId } = useChatStore();
+  const { currentConversationId, createConversation } = useChatStore();
   // Auth handled by authenticatedFetch
   const { llm, erp, rag } = useSettingsStore();
+  const incrementUsage = useSpendingStore((state) => state.incrementUsage);
+  const incrementRequests = useSpendingStore(
+    (state) => state.incrementRequests,
+  );
 
   /**
    * Request microphone permissions
@@ -158,6 +163,7 @@ export function useVoice() {
 
     setIsProcessing(true);
     setError(null);
+    let conversationId = currentConversationId;
 
     try {
       // Stop recording
@@ -173,9 +179,9 @@ export function useVoice() {
         encoding: "base64",
       });
 
-      // Send to server
-      if (!currentConversationId) {
-        throw new Error("No active conversation");
+      // Create conversation lazily on first voice request.
+      if (!conversationId) {
+        conversationId = await createConversation("New Chat");
       }
 
       const serverResponse = await secureApiRequest(
@@ -226,11 +232,22 @@ export function useVoice() {
       let userTranscript = "";
       let assistantTranscript = "";
       const audioChunks: string[] = [];
+      let usageCounted = false;
 
       for (const line of lines) {
         if (!line.startsWith("data: ")) continue;
         try {
           const data = JSON.parse(line.slice(6));
+
+          if (data.type === "usage" && data.usage) {
+            const totalTokens = Number(data.usage.totalTokens ?? 0);
+            if (totalTokens > 0) {
+              incrementUsage(totalTokens);
+            }
+            incrementRequests();
+            usageCounted = true;
+            continue;
+          }
 
           if (data.type === "user_transcript") {
             userTranscript = data.data;
@@ -246,6 +263,10 @@ export function useVoice() {
             throw err;
           }
         }
+      }
+
+      if (!usageCounted) {
+        incrementRequests();
       }
 
       const result: VoiceResponse = {
@@ -267,7 +288,7 @@ export function useVoice() {
     } catch (err) {
       // Log error with context
       logError(err, "useVoice.stopRecording", {
-        conversationId: currentConversationId,
+        conversationId,
         provider: llm.provider,
       });
 
@@ -303,9 +324,12 @@ export function useVoice() {
     audioRecorder,
     recorderState.isRecording,
     currentConversationId,
+    createConversation,
     llm,
     erp,
     rag,
+    incrementUsage,
+    incrementRequests,
     playAudio,
   ]);
 

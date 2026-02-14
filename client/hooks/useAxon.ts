@@ -3,6 +3,7 @@ import { useChatStore, ChatMessage } from "@/store/chatStore";
 import { secureApiRequest } from "@/lib/query-client";
 import { localStore } from "@/lib/local-store";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useSpendingStore } from "@/store/spendingStore";
 import type { EphemeralCredentials } from "@/lib/jwe-encryption";
 import {
   getUserFriendlyMessage,
@@ -29,6 +30,10 @@ export function useAxon() {
 
   const mcpServers = useSettingsStore((state) => state.mcpServers);
   const llmSettings = useSettingsStore((state) => state.llm);
+  const incrementUsage = useSpendingStore((state) => state.incrementUsage);
+  const incrementRequests = useSpendingStore(
+    (state) => state.incrementRequests,
+  );
 
   /**
    * Send a message to Axon and get streaming response.
@@ -102,16 +107,29 @@ export function useAxon() {
         const responseText = await response.text();
         const lines = responseText.split("\n");
         let fullResponse = "";
+        let usageCounted = false;
 
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           try {
             const data = JSON.parse(line.slice(6));
+            if (data.type === "usage" && data.usage) {
+              const totalTokens = Number(data.usage.totalTokens ?? 0);
+              if (totalTokens > 0) {
+                incrementUsage(totalTokens);
+              }
+              incrementRequests();
+              usageCounted = true;
+              continue;
+            }
             if (data.content) {
               fullResponse += data.content;
               setStreamingContent(fullResponse);
             }
             if (data.done) {
+              if (!usageCounted) {
+                incrementRequests();
+              }
               const assistantMessage: ChatMessage = {
                 id: Date.now() + 1,
                 role: "assistant",
@@ -153,6 +171,8 @@ export function useAxon() {
       setStreamingContent,
       mcpServers,
       llmSettings,
+      incrementUsage,
+      incrementRequests,
     ],
   );
 

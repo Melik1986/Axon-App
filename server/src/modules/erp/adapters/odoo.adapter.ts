@@ -211,7 +211,14 @@ export class OdooAdapter implements ErpAdapter {
 
   async getProducts(filter?: string): Promise<Product[]> {
     const domain: unknown[] = filter ? [[["name", "ilike", filter]]] : [[]];
-    const fields = ["name", "default_code", "list_price", "type"];
+    const fields = [
+      "name",
+      "default_code",
+      "list_price",
+      "type",
+      "qty_available",
+      "uom_id",
+    ];
 
     const productsUnknown = await this.executeKw(
       "product.product",
@@ -223,11 +230,14 @@ export class OdooAdapter implements ErpAdapter {
     const products = this.asArray(productsUnknown);
     return products.map((pUnknown) => {
       const p = this.asRecord(pUnknown);
+      const uom = this.getTuple2(p.uom_id);
       return {
         id: String(this.getNumber(p.id) ?? ""),
         name: this.getString(p.name) ?? "",
         sku: this.getString(p.default_code) || "",
         price: this.getNumber(p.list_price),
+        quantity: this.getNumber(p.qty_available),
+        unit: uom?.[1] || "шт",
         isService: this.getString(p.type) === "service",
       };
     });

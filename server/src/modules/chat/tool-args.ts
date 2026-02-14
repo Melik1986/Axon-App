@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 const getStockSchema = z.object({
-  product_name: z.string(),
+  product_name: z.string().optional(),
 });
 
 const getProductsSchema = z.object({

@@ -225,10 +225,10 @@ export class ToolRegistryService {
       properties: {
         product_name: {
           type: "string",
-          description: "Название товара или часть названия для поиска",
+          description:
+            "Optional product name filter. Omit to return the full stock list.",
         },
       },
-      required: ["product_name"],
       additionalProperties: false,
     });
 
@@ -237,7 +237,7 @@ export class ToolRegistryService {
       properties: {
         filter: {
           type: "string",
-          description: "Фильтр по названию товара (опционально)",
+          description: "Optional product name filter",
         },
       },
       additionalProperties: false,
@@ -248,7 +248,7 @@ export class ToolRegistryService {
       properties: {
         customer_name: {
           type: "string",
-          description: "Название покупателя/контрагента",
+          description: "Customer name",
         },
         items: {
           type: "array",
@@ -272,50 +272,58 @@ export class ToolRegistryService {
     return {
       get_stock: dynamicTool({
         description:
-          "Получить остатки товара на складе по названию. Используй когда пользователь спрашивает о наличии, остатках, количестве товара.",
+          "Get stock balances for a specific product or the whole warehouse.",
         inputSchema: getStockSchema,
         execute: _wrap("get_stock", async (input) => {
           const { product_name: productName } = input as {
-            product_name: string;
+            product_name?: string;
           };
           const stock = await erpService.getStock(productName, erpSettings);
           if (stock.length === 0) {
-            return `Товары по запросу "${productName}" не найдены.`;
+            return productName
+              ? `No products found for "${productName}".`
+              : "Stock list is empty.";
           }
           const stockList = stock
             .map(
               (s) =>
-                `• ${s.name} (${s.sku || "без артикула"}): ${s.quantity} ${s.unit || "шт"}`,
+                `- ${s.name} (${s.sku || "no-sku"}): ${s.quantity} ${s.unit || "pcs"}`,
             )
             .join("\n");
-          return `Остатки по запросу "${productName}":\n${stockList}`;
+          return productName
+            ? `Stock for "${productName}":\n${stockList}`
+            : `Full warehouse stock:\n${stockList}`;
         }),
       }),
 
       get_products: dynamicTool({
-        description: "Получить список товаров из каталога ERP.",
+        description: "Get ERP product catalog.",
         inputSchema: getProductsSchema,
         execute: _wrap("get_products", async (input) => {
           const { filter } = input as { filter?: string };
           const products = await erpService.getProducts(filter, erpSettings);
           if (products.length === 0) {
             return filter
-              ? `Товары по запросу "${filter}" не найдены.`
-              : "Каталог товаров пуст.";
+              ? `No products found for "${filter}".`
+              : "Product catalog is empty.";
           }
           const productList = products
             .map((p) => {
-              const price = p.price ? ` — ${p.price} ₽` : "";
-              const type = p.isService ? " (услуга)" : "";
-              return `• ${p.name}${price}${type}`;
+              const price = p.price ? ` - ${p.price}` : "";
+              const type = p.isService ? " (service)" : "";
+              const quantity =
+                typeof p.quantity === "number"
+                  ? ` | Stock: ${p.quantity} ${p.unit || "pcs"}`
+                  : "";
+              return `- ${p.name}${price}${type}${quantity}`;
             })
             .join("\n");
-          return `Список товаров${filter ? ` по запросу "${filter}"` : ""}:\n${productList}`;
+          return `Product list${filter ? ` for "${filter}"` : ""}:\n${productList}`;
         }),
       }),
 
       create_invoice: dynamicTool({
-        description: "Создать документ реализации (продажи) in ERP.",
+        description: "Create ERP sales invoice.",
         inputSchema: createInvoiceSchema,
         execute: _wrap("create_invoice", async (input) => {
           const invoice = await erpService.createInvoice(
@@ -331,7 +339,7 @@ export class ToolRegistryService {
             erpSettings,
           );
 
-          return `Документ создан:\n• Номер: ${invoice.number}\n• Дата: ${new Date(invoice.date).toLocaleDateString("ru-RU")}\n• Покупатель: ${invoice.customerName}\n• Сумма: ${invoice.total} ₽\n• Статус: ${invoice.status === "draft" ? "Черновик" : "Проведён"}`;
+          return `Invoice created:\n- Number: ${invoice.number}\n- Date: ${new Date(invoice.date).toLocaleDateString("ru-RU")}\n- Customer: ${invoice.customerName}\n- Total: ${invoice.total}\n- Status: ${invoice.status === "draft" ? "Draft" : "Posted"}`;
         }),
       }),
     };

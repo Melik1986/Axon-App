@@ -33,6 +33,7 @@ import { AgentVisualizer, AgentState } from "@/components/AgentVisualizer";
 import { useChatStore, ChatMessage } from "@/store/chatStore";
 import type { ToolCall, Attachment } from "@shared/types";
 import { useSettingsStore } from "@/store/settingsStore";
+import { useSpendingStore } from "@/store/spendingStore";
 // Auth handled by authenticatedFetch from query-client
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
@@ -54,6 +55,10 @@ export default function ChatScreen() {
   const llmSettings = useSettingsStore((state) => state.llm);
   const erpSettings = useSettingsStore((state) => state.erp);
   const ragSettings = useSettingsStore((state) => state.rag);
+  const incrementUsage = useSpendingStore((state) => state.incrementUsage);
+  const incrementRequests = useSpendingStore(
+    (state) => state.incrementRequests,
+  );
   const mcpServers = useSettingsStore((state) => state.mcpServers);
   const mcpToolsHint =
     mcpServers.length > 0 ? `MCP tools: ${mcpServers.length}` : null;
@@ -79,6 +84,7 @@ export default function ChatScreen() {
     streamingContent,
     addMessage,
     setCurrentConversation,
+    setMessages,
     setStreaming,
     setStreamingContent,
     clearStreamingContent,
@@ -88,24 +94,43 @@ export default function ChatScreen() {
   const route = useRoute<RouteProp<ChatStackParamList, "Chat">>();
   const incomingConvId = route.params?.conversationId;
 
-  // Load existing conversation or create new one
+  // Load existing conversation without auto-creating empty chats.
   useEffect(() => {
     const init = async () => {
       try {
         if (incomingConvId) {
           setCurrentConversation(incomingConvId);
           await loadMessages(incomingConvId);
-        } else if (!currentConversationId) {
-          const id = await createConversation(t("newChat"));
-          setCurrentConversation(id);
+          return;
         }
+
+        if (currentConversationId) {
+          await loadMessages(currentConversationId);
+          return;
+        }
+
+        const existing = await localStore.listConversations();
+        const latestConversationId = existing[0]?.id;
+
+        if (latestConversationId) {
+          setCurrentConversation(latestConversationId);
+          await loadMessages(latestConversationId);
+          return;
+        }
+
+        setMessages([]);
       } catch (error) {
         AppLogger.error("Failed to init conversation:", error);
       }
     };
     void init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [incomingConvId]);
+  }, [
+    incomingConvId,
+    currentConversationId,
+    loadMessages,
+    setCurrentConversation,
+    setMessages,
+  ]);
 
   /** Generate a compressed summary of older messages via LLM */
   const generateSummary = useCallback(
@@ -173,12 +198,19 @@ export default function ChatScreen() {
   const sendMessage = useCallback(
     async (overrideText?: string) => {
       const text = overrideText ?? inputText;
-      if (
-        (!text.trim() && attachments.length === 0) ||
-        !currentConversationId ||
-        isStreaming
-      )
-        return;
+      if ((!text.trim() && attachments.length === 0) || isStreaming) return;
+
+      let conversationId = currentConversationId;
+      if (!conversationId) {
+        try {
+          conversationId = await createConversation(t("newChat"));
+          setCurrentConversation(conversationId);
+        } catch (error) {
+          AppLogger.error("Failed to create conversation:", error);
+          Alert.alert(t("error"), t("sendFailed"));
+          return;
+        }
+      }
 
       const userMessage: ChatMessage = {
         id: Date.now(),
@@ -200,7 +232,7 @@ export default function ChatScreen() {
 
       try {
         // Read context from local SQLite for zero-storage payload
-        const convId = currentConversationId as string;
+        const convId = conversationId;
         const [history, activeRules, enabledSkills, memoryFacts, convSummary] =
           await Promise.all([
             localStore.getRecentHistory(convId, CHAT_CONFIG.RECENT_WINDOW),
@@ -299,6 +331,7 @@ export default function ChatScreen() {
         const allLines = responseText.split("\n");
         let fullContent = "";
         const toolCalls: ToolCall[] = [];
+        let usageCounted = false;
 
         for (const line of allLines) {
           if (!line.startsWith("data: ")) continue;
@@ -309,6 +342,16 @@ export default function ChatScreen() {
               AppLogger.error("Stream error:", data.error);
               Alert.alert(t("error"), data.error);
               break;
+            }
+
+            if (data.type === "usage" && data.usage) {
+              const totalTokens = Number(data.usage.totalTokens ?? 0);
+              if (totalTokens > 0) {
+                incrementUsage(totalTokens);
+              }
+              incrementRequests();
+              usageCounted = true;
+              continue;
             }
 
             if (data.content) {
@@ -343,11 +386,7 @@ export default function ChatScreen() {
                       : data.toolResult.result;
                   if (result?._action === "save_memory") {
                     localStore
-                      .saveMemoryFact(
-                        result.key,
-                        result.value,
-                        currentConversationId ?? undefined,
-                      )
+                      .saveMemoryFact(result.key, result.value, convId)
                       .catch((e) =>
                         AppLogger.error("Failed to save memory fact", e),
                       );
@@ -358,10 +397,23 @@ export default function ChatScreen() {
               }
             }
             if (data.done) {
+              if (!usageCounted) {
+                incrementRequests();
+              }
+
+              const textContent = fullContent.trim();
+              const fallbackFromTools = toolCalls
+                .map((tool) => tool.resultSummary)
+                .filter(
+                  (summary): summary is string =>
+                    typeof summary === "string" && summary.trim().length > 0,
+                )
+                .join("\n\n");
+
               const assistantMessage: ChatMessage = {
                 id: Date.now() + 1,
                 role: "assistant",
-                content: fullContent,
+                content: textContent || fallbackFromTools,
                 createdAt: new Date().toISOString(),
                 toolCalls: toolCalls,
               };
@@ -369,23 +421,22 @@ export default function ChatScreen() {
               clearStreamingContent();
 
               // Auto-title: update from "New Chat" after first exchange
-              if (messages.length <= 1 && currentConversationId) {
+              if (messages.length <= 1) {
                 const title =
                   userMessage.content.slice(0, 40) +
                   (userMessage.content.length > 40 ? "..." : "");
                 localStore
-                  .updateConversationTitle(currentConversationId, title)
+                  .updateConversationTitle(convId, title)
                   .catch(() => {});
               }
 
               // Auto-summarize: update summary every N new messages after threshold
               const totalMsgs = messages.length + 2; // +user +assistant just added
               if (
-                currentConversationId &&
                 totalMsgs >= CHAT_CONFIG.SUMMARY_MIN_MESSAGES &&
                 totalMsgs % CHAT_CONFIG.SUMMARY_FREQUENCY < 2 // trigger roughly every N messages
               ) {
-                generateSummary(currentConversationId).catch(() => {});
+                generateSummary(convId).catch(() => {});
               }
 
               if (Platform.OS !== "web") {
@@ -413,7 +464,9 @@ export default function ChatScreen() {
       isStreaming,
       mcpServers,
       addMessage,
+      createConversation,
       clearStreamingContent,
+      setCurrentConversation,
       setStreaming,
       setStreamingContent,
       messages.length,
@@ -433,6 +486,8 @@ export default function ChatScreen() {
       ragSettings.provider,
       ragSettings.qdrant,
       generateSummary,
+      incrementUsage,
+      incrementRequests,
       t,
     ],
   );

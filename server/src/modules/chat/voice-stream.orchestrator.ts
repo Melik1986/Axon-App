@@ -174,6 +174,24 @@ export class VoiceStreamOrchestrator {
             }
           }
 
+          try {
+            const usage = await result.totalUsage;
+            const inputTokens = usage?.inputTokens ?? 0;
+            const outputTokens = usage?.outputTokens ?? 0;
+            const totalTokens =
+              usage?.totalTokens ?? inputTokens + outputTokens;
+
+            this.streamEmitter.emitUsage(res, {
+              inputTokens,
+              outputTokens,
+              totalTokens,
+              provider,
+              model: modelName,
+            });
+          } catch (usageError) {
+            AppLogger.warn("Failed to extract voice token usage:", usageError);
+          }
+
           this.streamEmitter.emitVoiceTranscript(res, "", "done");
         },
         true, // isStreaming

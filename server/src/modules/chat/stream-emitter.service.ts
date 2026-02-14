@@ -6,6 +6,14 @@ export interface StreamEvent {
   [key: string]: unknown;
 }
 
+export interface UsageEventPayload {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  provider?: string;
+  model?: string;
+}
+
 @Injectable()
 export class StreamEmitterService {
   /**
@@ -84,6 +92,13 @@ export class StreamEmitterService {
    */
   emitError(res: Response, error: string): void {
     this.emit(res, { type: "error", error });
+  }
+
+  /**
+   * Emit token usage metadata for spending tracker.
+   */
+  emitUsage(res: Response, usage: UsageEventPayload): void {
+    this.emit(res, { type: "usage", usage });
   }
 
   /**

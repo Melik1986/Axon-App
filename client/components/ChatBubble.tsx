@@ -99,12 +99,17 @@ export function ChatBubble({
                 </View>
 
                 {tool.resultSummary ? (
-                  <ThemedText style={styles.toolResult} numberOfLines={2}>
+                  <ThemedText
+                    style={[styles.toolResult, { color: theme.textSecondary }]}
+                  >
                     {tool.resultSummary}
                   </ThemedText>
                 ) : (
                   <ThemedText
-                    style={[styles.toolResult, { fontStyle: "italic" }]}
+                    style={[
+                      styles.toolResult,
+                      { fontStyle: "italic", color: theme.textSecondary },
+                    ]}
                   >
                     Executing...
                   </ThemedText>
@@ -200,7 +205,6 @@ const styles = StyleSheet.create({
   },
   toolResult: {
     fontSize: 12,
-    color: "#666",
   },
   confidenceBadge: {
     paddingHorizontal: 6,

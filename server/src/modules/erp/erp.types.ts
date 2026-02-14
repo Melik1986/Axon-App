@@ -24,6 +24,8 @@ export interface Product {
   name: string;
   sku?: string;
   price?: number;
+  quantity?: number;
+  unit?: string;
   isService?: boolean;
 }
 
