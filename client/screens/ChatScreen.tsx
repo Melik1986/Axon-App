@@ -403,13 +403,38 @@ export default function ChatScreen() {
               }
 
               const textContent = fullContent.trim();
+              const toolCallsByName = new Map<string, ToolCall>();
+              for (const toolCall of toolCalls) {
+                const normalizedToolName = toolCall.toolName
+                  .trim()
+                  .toLowerCase();
+                const existing = toolCallsByName.get(normalizedToolName);
+
+                if (!existing) {
+                  toolCallsByName.set(normalizedToolName, toolCall);
+                  continue;
+                }
+
+                const existingDone =
+                  existing.status === "done" || !!existing.resultSummary;
+                const currentDone =
+                  toolCall.status === "done" || !!toolCall.resultSummary;
+
+                if (!existingDone && currentDone) {
+                  toolCallsByName.set(normalizedToolName, {
+                    ...existing,
+                    ...toolCall,
+                  });
+                }
+              }
+              const uniqueToolCalls = Array.from(toolCallsByName.values());
 
               const assistantMessage: ChatMessage = {
                 id: Date.now() + 1,
                 role: "assistant",
                 content: textContent || t("completed"),
                 createdAt: new Date().toISOString(),
-                toolCalls: toolCalls,
+                toolCalls: uniqueToolCalls,
               };
               addMessage(assistantMessage);
               clearStreamingContent();
@@ -495,16 +520,6 @@ export default function ChatScreen() {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
-  };
-
-  const handleConfirmAction = (toolName: string) => {
-    setInputText(`Confirm: ${toolName}`);
-    // Optional: automatically send the message
-    // setTimeout(sendMessage, 100);
-  };
-
-  const handleRejectAction = (toolName: string) => {
-    setInputText(`Reject: ${toolName}`);
   };
 
   const handleCamera = async () => {
@@ -759,8 +774,6 @@ export default function ChatScreen() {
             content={item.content}
             isUser={item.role === "user"}
             toolCalls={item.toolCalls}
-            onConfirm={handleConfirmAction}
-            onReject={handleRejectAction}
             onCopy={handleCopyMessage}
           />
           {isLastAssistant && (
