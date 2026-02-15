@@ -134,11 +134,15 @@ export class AuthController {
     }
 
     const callbackUrl = this.authService.getCallbackUrl();
+    const codeVerifier = state
+      ? this.authService.getCodeVerifier(state)
+      : undefined;
 
     const result = await this.authService.authenticateWithReplitCallback(
       code,
       state,
       callbackUrl,
+      codeVerifier,
     );
 
     if (!result.success || !result.session || !result.user) {
