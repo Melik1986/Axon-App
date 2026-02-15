@@ -3,14 +3,15 @@ import { StyleSheet, View, Pressable } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ThemedText } from "@/components/ThemedText";
 import { useTheme } from "@/hooks/useTheme";
+import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import type { ChatMessage } from "@shared/types";
+import type { ToolCall } from "@shared/types";
 
 interface ChatBubbleProps {
   content: string;
   isUser: boolean;
   isStreaming?: boolean;
-  toolCalls?: ChatMessage["toolCalls"];
+  toolCalls?: ToolCall[];
   onConfirm?: (toolName: string) => void;
   onReject?: (toolName: string) => void;
 }
@@ -24,6 +25,7 @@ export function ChatBubble({
   onReject,
 }: ChatBubbleProps) {
   const { theme } = useTheme();
+  const { t } = useTranslation();
 
   return (
     <View
@@ -98,22 +100,22 @@ export function ChatBubble({
                   )}
                 </View>
 
-                {tool.resultSummary ? (
-                  <ThemedText
-                    style={[styles.toolResult, { color: theme.textSecondary }]}
-                  >
-                    {tool.resultSummary}
-                  </ThemedText>
-                ) : (
-                  <ThemedText
-                    style={[
-                      styles.toolResult,
-                      { fontStyle: "italic", color: theme.textSecondary },
-                    ]}
-                  >
-                    Executing...
-                  </ThemedText>
-                )}
+                <ThemedText
+                  style={[
+                    styles.toolResult,
+                    {
+                      color: theme.textSecondary,
+                      fontStyle:
+                        tool.status === "done" || tool.resultSummary
+                          ? "normal"
+                          : "italic",
+                    },
+                  ]}
+                >
+                  {tool.status === "done" || tool.resultSummary
+                    ? t("completed")
+                    : `${t("processing")}...`}
+                </ThemedText>
 
                 {tool.confidence !== undefined && tool.confidence < 0.85 && (
                   <View style={styles.confirmationRow}>
@@ -127,7 +129,7 @@ export function ChatBubble({
                       <ThemedText
                         style={{ color: theme.buttonText, fontSize: 12 }}
                       >
-                        Confirm
+                        {t("save")}
                       </ThemedText>
                     </Pressable>
                     <Pressable
@@ -140,7 +142,7 @@ export function ChatBubble({
                       <ThemedText
                         style={{ color: theme.buttonText, fontSize: 12 }}
                       >
-                        Reject
+                        {t("cancel")}
                       </ThemedText>
                     </Pressable>
                   </View>

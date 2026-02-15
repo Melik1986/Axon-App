@@ -402,18 +402,11 @@ export default function ChatScreen() {
               }
 
               const textContent = fullContent.trim();
-              const fallbackFromTools = toolCalls
-                .map((tool) => tool.resultSummary)
-                .filter(
-                  (summary): summary is string =>
-                    typeof summary === "string" && summary.trim().length > 0,
-                )
-                .join("\n\n");
 
               const assistantMessage: ChatMessage = {
                 id: Date.now() + 1,
                 role: "assistant",
-                content: textContent || fallbackFromTools,
+                content: textContent || t("completed"),
                 createdAt: new Date().toISOString(),
                 toolCalls: toolCalls,
               };
