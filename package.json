@@ -36,11 +36,12 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx,json,css,md}": [
-      "prettier --write"
-    ],
     "*.{js,jsx,ts,tsx}": [
+      "prettier --write",
       "npx expo lint"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
     ]
   },
   "dependencies": {

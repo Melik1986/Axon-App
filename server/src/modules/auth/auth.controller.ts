@@ -126,11 +126,16 @@ export class AuthController {
           `${clientRedirectFromState}${sep}error=auth_denied`,
         );
       }
-      return res.status(401).json({ error: "auth_denied", message: "Authentication was denied by provider" });
+      return res.status(401).json({
+        error: "auth_denied",
+        message: "Authentication was denied by provider",
+      });
     }
 
     if (!code) {
-      return res.status(400).json({ error: "no_code", message: "No authorization code received" });
+      return res
+        .status(400)
+        .json({ error: "no_code", message: "No authorization code received" });
     }
 
     const callbackUrl = this.authService.getCallbackUrl();
@@ -156,7 +161,10 @@ export class AuthController {
           `${clientRedirectFromState}${sep}error=auth_failed`,
         );
       }
-      return res.status(401).json({ error: "auth_failed", message: result.error || "Authentication failed" });
+      return res.status(401).json({
+        error: "auth_failed",
+        message: result.error || "Authentication failed",
+      });
     }
 
     const clientRedirect = clientRedirectFromState;
