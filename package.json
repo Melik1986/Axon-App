@@ -33,7 +33,7 @@
     "check:types": "tsc --noEmit",
     "check:format": "prettier --check \"**/*.{js,ts,tsx,css,json}\"",
     "format": "prettier --write \"**/*.{js,ts,tsx,css,json}\"",
-    "prepare": "husky"
+    "prepare": "node scripts/prepare-husky.js"
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [

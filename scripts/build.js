@@ -19,9 +19,9 @@ if (fs.existsSync(resolvedOutputDir)) {
 /* eslint-disable no-console -- Build script needs console output */
 console.log("Building Expo static bundles...");
 
-execSync(
-  `npx expo export --output-dir static-build --platform all`,
-  { stdio: "inherit", cwd: projectRoot },
-);
+execSync(`npx expo export --output-dir static-build --platform all`, {
+  stdio: "inherit",
+  cwd: projectRoot,
+});
 
 console.log("Expo static build complete: static-build/");

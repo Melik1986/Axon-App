@@ -4,7 +4,8 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "NODE_ENV": "development"
+        "NODE_ENV": "development",
+        "EXPO_NO_DOCTOR": "1"
       },
       "android": {
         "buildType": "apk",
@@ -13,7 +14,8 @@
     },
     "preview": {
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_NO_DOCTOR": "1"
       },
       "android": {
         "buildType": "apk",
@@ -23,7 +25,8 @@
     },
     "production": {
       "env": {
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EXPO_NO_DOCTOR": "1"
       },
       "android": {
         "buildType": "apk",
