@@ -23,7 +23,7 @@ import {
   SERVER_PUBLIC_KEY,
   SERVER_PUBLIC_JWK,
 } from "../../config/jwk.config";
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import { randomBytes } from "crypto";
 import { AppLogger } from "../../utils/logger";
 import {

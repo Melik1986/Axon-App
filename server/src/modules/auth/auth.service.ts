@@ -1,8 +1,8 @@
 import { Injectable, Inject, OnModuleInit, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
 import * as crypto from "crypto";
-import * as bcrypt from "bcryptjs";
+import bcrypt from "bcryptjs";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { eq } from "drizzle-orm";
 import { AuthUser, AuthSession } from "./auth.types";
