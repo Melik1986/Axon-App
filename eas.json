@@ -3,12 +3,20 @@
     "development": {
       "developmentClient": true,
       "distribution": "internal",
+      "env": {
+        "NODE_ENV": "development",
+        "EXPO_NO_DOCTOR": "1"
+      },
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
       }
     },
     "preview": {
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_NO_DOCTOR": "1"
+      },
       "android": {
         "buildType": "apk",
         "distribution": "internal",
@@ -16,6 +24,10 @@
       }
     },
     "production": {
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_NO_DOCTOR": "1"
+      },
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleRelease"
