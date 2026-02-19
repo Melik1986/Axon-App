@@ -1,0 +1,49 @@
+name: PR Preview OTA
+
+on:
+  pull_request:
+    branches: ["dev", "main"]
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+jobs:
+  quality_pr:
+    name: PR Workflow Validation
+    environment: development
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Validate EAS workflows
+        run: |
+          npx eas workflow:validate .eas/workflows/dev.yml --non-interactive
+          npx eas workflow:validate .eas/workflows/main.yml --non-interactive
+          npx eas workflow:validate .eas/workflows/update-pr.yml --non-interactive
+      - name: Type check
+        run: npm run check:types
+
+  update_pr_preview:
+    name: Publish PR Preview OTA
+    needs: [quality_pr]
+    type: update
+    environment: development
+    params:
+      branch: pr-${{ github.event.pull_request.number }}
+      platform: all
+      message: PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}
+
+  pr_preview_note:
+    name: PR Preview Summary
+    needs: [update_pr_preview]
+    type: doc
+    params:
+      md: |
+        ## PR preview OTA published
+
+        - PR number: `${{ github.event.pull_request.number }}`
+        - Preview branch: `pr-${{ github.event.pull_request.number }}`
+        - Update ID: `${{ needs.update_pr_preview.outputs.update_id }}`
+        - Update group: `${{ needs.update_pr_preview.outputs.first_update_group_id }}`
+
+        Open the update in EAS dashboard and test on device without native rebuild.

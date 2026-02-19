@@ -3,7 +3,7 @@ name: Main Production Pipeline
 on:
   push:
     branches: ["main"]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   cancel_in_progress: true
@@ -16,6 +16,11 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
+      - name: Validate EAS workflows
+        run: |
+          npx eas workflow:validate .eas/workflows/dev.yml --non-interactive
+          npx eas workflow:validate .eas/workflows/main.yml --non-interactive
+          npx eas workflow:validate .eas/workflows/update-pr.yml --non-interactive
       - name: Lint
         run: npm run lint
       - name: Type check
@@ -29,40 +34,77 @@ jobs:
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
 
-  build_prod_android:
-    name: Build Production Android
+  release_prod:
+    name: Fingerprint Gate + Build/Update/Submit
     needs: [quality_main]
-    type: build
     environment: production
-    env:
-      EAS_USE_CACHE: "1"
-    params:
-      platform: android
-      profile: production
-      message: ${{ github.commit_message || github.sha }}
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Fingerprint gate and optional native build
+        run: |
+          set -eu
+          CURRENT_FP="$(npx eas fingerprint:generate --platform android --non-interactive --json | node -e 'const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));console.log(data.hash || data.fingerprintHash || "");')"
+          LAST_FP="$(npx eas build:list --platform android --build-profile production --status finished --limit 1 --non-interactive --json | node -e 'const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));const first=Array.isArray(data)&&data.length>0?data[0]:null;console.log(first?.fingerprintHash || "");')"
+          echo "Current fingerprint: ${CURRENT_FP}"
+          echo "Last prod fingerprint: ${LAST_FP:-<none>}"
 
-  update_prod:
-    name: Publish Production OTA
-    needs: [build_prod_android]
-    type: update
-    environment: production
-    params:
-      branch: production
-      platform: all
-      message: ${{ github.commit_message || github.sha }}
+          SHOULD_BUILD="false"
+          if [ "${FORCE_PROD_NATIVE_BUILD:-false}" = "true" ] || [ -z "${LAST_FP}" ] || [ "${CURRENT_FP}" != "${LAST_FP}" ]; then
+            SHOULD_BUILD="true"
+          fi
+
+          echo "Native rebuild required: ${SHOULD_BUILD}"
+          if [ "${SHOULD_BUILD}" = "true" ]; then
+            BUILD_ID="$(npx eas build --platform android --profile production --freeze-credentials --non-interactive --json | node -e 'const fs=require("fs");const data=JSON.parse(fs.readFileSync(0,"utf8"));console.log(data.id || "");')"
+            if [ -z "${BUILD_ID}" ]; then
+              echo "Failed to extract build id from EAS build output"
+              exit 1
+            fi
+            echo "${BUILD_ID}" > .build_id
+            echo "Started/finished production build id: ${BUILD_ID}"
+          else
+            echo "Skipping native build: fingerprint unchanged."
+          fi
+      - name: Publish production OTA
+        run: |
+          set -eu
+          ROLLOUT_PERCENT="${PROD_OTA_ROLLOUT_PERCENT:-25}"
+          case "${ROLLOUT_PERCENT}" in
+            ''|*[!0-9]*)
+              echo "PROD_OTA_ROLLOUT_PERCENT must be an integer 1..100"
+              exit 1
+              ;;
+          esac
+          if [ "${ROLLOUT_PERCENT}" -lt 1 ] || [ "${ROLLOUT_PERCENT}" -gt 100 ]; then
+            echo "PROD_OTA_ROLLOUT_PERCENT must be in range 1..100"
+            exit 1
+          fi
+          npx eas update --branch production --platform all --rollout-percentage "${ROLLOUT_PERCENT}" --message "${{ github.commit_message || github.sha }}" --non-interactive
+      - name: Optional Play submit
+        run: |
+          set -eu
+          if [ "${EAS_ENABLE_AUTO_SUBMIT:-false}" != "true" ]; then
+            echo "Auto-submit is disabled (EAS_ENABLE_AUTO_SUBMIT!=true)."
+            exit 0
+          fi
+          if [ ! -f .build_id ]; then
+            echo "No native build in this run. Skipping submit."
+            exit 0
+          fi
+          BUILD_ID="$(cat .build_id)"
+          npx eas submit --platform android --profile production --id "${BUILD_ID}" --non-interactive
 
   release_note:
     name: Release Summary
-    needs: [build_prod_android, update_prod]
-    if: ${{ needs.build_prod_android.status == 'success' && needs.update_prod.status == 'success' }}
+    needs: [release_prod]
     type: doc
     params:
       md: |
         ## Production release summary
 
-        - Android build completed from `main`.
-        - OTA update published to `production`.
-        - Build ID: `${{ needs.build_prod_android.outputs.build_id }}`
-        - First update group ID: `${{ needs.update_prod.outputs.first_update_group_id }}`
-
-        Next step: optional manual store submission.
+        - Quality checks passed.
+        - Fingerprint gate executed before release actions.
+        - Production OTA published to `production`.
+        - Native build runs only on fingerprint change or `FORCE_PROD_NATIVE_BUILD=true`.
+        - Play submit runs only when `EAS_ENABLE_AUTO_SUBMIT=true`.

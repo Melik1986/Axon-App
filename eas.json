@@ -28,6 +28,7 @@
       }
     },
     "production": {
+      "distribution": "store",
       "channel": "production",
       "env": {
         "NODE_ENV": "production",
@@ -35,8 +36,15 @@
         "EXPO_PUBLIC_DOMAIN": "https://axon-ai.replit.app"
       },
       "android": {
-        "buildType": "apk",
+        "buildType": "app-bundle",
         "gradleCommand": ":app:assembleRelease"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "android": {
+        "track": "internal"
       }
     }
   },

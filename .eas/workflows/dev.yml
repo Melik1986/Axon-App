@@ -3,9 +3,7 @@ name: Dev Mobile Pipeline
 on:
   push:
     branches: ["dev"]
-  pull_request:
-    branches: ["dev"]
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 concurrency:
   cancel_in_progress: true
@@ -18,6 +16,11 @@ jobs:
     steps:
       - uses: eas/checkout
       - uses: eas/install_node_modules
+      - name: Validate EAS workflows
+        run: |
+          npx eas workflow:validate .eas/workflows/dev.yml --non-interactive
+          npx eas workflow:validate .eas/workflows/main.yml --non-interactive
+          npx eas workflow:validate .eas/workflows/update-pr.yml --non-interactive
       - name: Lint
         run: npm run lint
       - name: Type check
@@ -52,15 +55,3 @@ jobs:
       platform: android
       profile: development
       message: ${{ github.commit_message || github.sha }}
-
-  comment_dev_pr:
-    name: PR QA Note
-    after: [quality_dev, update_dev, build_dev_android]
-    if: ${{ github.event_name == 'pull_request' && after.quality_dev.status == 'success' }}
-    type: github-comment
-    params:
-      message: |
-        Dev quality checks passed.
-
-        OTA updates and internal Android builds run automatically on push to `dev`.
-        For PR validation, merge/push to `dev` and test in Expo Go from the `dev` update branch.
