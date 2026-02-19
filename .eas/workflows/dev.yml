@@ -1,0 +1,66 @@
+name: Dev Mobile Pipeline
+
+on:
+  push:
+    branches: ["dev"]
+  pull_request:
+    branches: ["dev"]
+  workflow_dispatch:
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+jobs:
+  quality_dev:
+    name: Dev Quality Gates
+    environment: development
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run check:types
+      - name: Unit tests
+        run: npm test
+      - name: Server tests
+        run: npm run test:server
+      - name: Backend build validation
+        run: npm run server:nest:build
+
+  update_dev:
+    name: Publish Dev OTA (Expo Go)
+    needs: [quality_dev]
+    if: ${{ github.event_name == 'push' }}
+    type: update
+    environment: development
+    params:
+      branch: dev
+      platform: all
+      message: ${{ github.commit_message || github.sha }}
+
+  build_dev_android:
+    name: Build Dev Android (internal APK)
+    needs: [quality_dev]
+    if: ${{ github.event_name == 'push' }}
+    type: build
+    environment: development
+    env:
+      EAS_USE_CACHE: "1"
+    params:
+      platform: android
+      profile: development
+      message: ${{ github.commit_message || github.sha }}
+
+  comment_dev_pr:
+    name: PR QA Note
+    after: [quality_dev, update_dev, build_dev_android]
+    if: ${{ github.event_name == 'pull_request' && after.quality_dev.status == 'success' }}
+    type: github-comment
+    params:
+      message: |
+        Dev quality checks passed.
+
+        OTA updates and internal Android builds run automatically on push to `dev`.
+        For PR validation, merge/push to `dev` and test in Expo Go from the `dev` update branch.

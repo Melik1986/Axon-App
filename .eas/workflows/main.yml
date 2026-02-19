@@ -1,0 +1,68 @@
+name: Main Production Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+concurrency:
+  cancel_in_progress: true
+  group: ${{ workflow.filename }}-${{ github.ref }}
+
+jobs:
+  quality_main:
+    name: Production Quality Gates
+    environment: production
+    steps:
+      - uses: eas/checkout
+      - uses: eas/install_node_modules
+      - name: Lint
+        run: npm run lint
+      - name: Type check
+        run: npm run check:types
+      - name: Unit tests
+        run: npm test
+      - name: Server tests
+        run: npm run test:server
+      - name: Backend build validation
+        run: npm run server:nest:build
+      - name: Production dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
+  build_prod_android:
+    name: Build Production Android
+    needs: [quality_main]
+    type: build
+    environment: production
+    env:
+      EAS_USE_CACHE: "1"
+    params:
+      platform: android
+      profile: production
+      message: ${{ github.commit_message || github.sha }}
+
+  update_prod:
+    name: Publish Production OTA
+    needs: [build_prod_android]
+    type: update
+    environment: production
+    params:
+      branch: production
+      platform: all
+      message: ${{ github.commit_message || github.sha }}
+
+  release_note:
+    name: Release Summary
+    needs: [build_prod_android, update_prod]
+    if: ${{ needs.build_prod_android.status == 'success' && needs.update_prod.status == 'success' }}
+    type: doc
+    params:
+      md: |
+        ## Production release summary
+
+        - Android build completed from `main`.
+        - OTA update published to `production`.
+        - Build ID: `${{ needs.build_prod_android.outputs.build_id }}`
+        - First update group ID: `${{ needs.update_prod.outputs.first_update_group_id }}`
+
+        Next step: optional manual store submission.

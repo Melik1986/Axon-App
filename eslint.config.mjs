@@ -79,6 +79,7 @@ export default defineConfig([
       "server_dist/*",
       "server/dist/*",
       "server-nest/dist/*",
+      "static-build/**",
       "**/*.d.ts",
     ],
   },
