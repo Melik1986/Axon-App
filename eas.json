@@ -52,5 +52,13 @@
     "requireCommit": false,
     "version": ">= 5.0.0",
     "appVersionSource": "remote"
+  },
+  "update": {
+    "development": {
+      "channel": "development"
+    },
+    "production": {
+      "channel": "production"
+    }
   }
 }
