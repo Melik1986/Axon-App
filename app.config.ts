@@ -1,6 +1,10 @@
 import { ExpoConfig, ConfigContext } from "expo/config";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
-const appJson = require("./app.json") as { expo: ExpoConfig };
+const appJson = JSON.parse(
+  readFileSync(resolve(process.cwd(), "app.json"), "utf8"),
+) as { expo: ExpoConfig };
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   const base = appJson.expo || config;
