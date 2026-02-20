@@ -4,6 +4,7 @@
  */
 import { useCallback } from "react";
 import { useAudioPlayback } from "./useAudioPlayback";
+import { fetchWithAccessHeaders } from "@/lib/access-request";
 
 interface StreamCallbacks {
   onUserTranscript?: (text: string) => void;
@@ -30,7 +31,7 @@ export function useVoiceStream(callbacks: StreamCallbacks = {}) {
         fileReader.readAsDataURL(audioBlob);
       });
 
-      const response = await fetch(url, {
+      const response = await fetchWithAccessHeaders(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ audio: base64Audio }),

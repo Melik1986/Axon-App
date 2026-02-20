@@ -40,6 +40,20 @@ export const SETTINGS_SENSITIVE_PATHS = [
 
 export const AUTH_SENSITIVE_PATHS = ["session"];
 
+/**
+ * Server access settings used by hosted licensing flow.
+ * License key is treated as high-security secret.
+ */
+export const SERVER_ACCESS_STD_PATHS = [
+  "mode",
+  "hostedUrl",
+  "selfHostedUrl",
+  "deviceId",
+  "isConfigured",
+];
+
+export const SERVER_ACCESS_HIGH_SEC_PATHS = ["licenseKey"];
+
 function uniquePaths(paths: string[]): string[] {
   return Array.from(new Set(paths));
 }

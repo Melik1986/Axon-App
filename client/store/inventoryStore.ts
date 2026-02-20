@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getApiUrl } from "@/lib/query-client";
-import { useAuthStore } from "./authStore";
+import { authenticatedFetch, getApiUrl } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
 import {
   getUserFriendlyMessage,
@@ -60,21 +59,16 @@ export const useInventoryStore = create<InventoryState>()(
 
         try {
           const baseUrl = getApiUrl();
-          const session = useAuthStore.getState().session;
-          const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-          };
-
-          if (session?.accessToken) {
-            headers["Authorization"] = `Bearer ${session.accessToken}`;
-          }
 
           const query = productName
             ? `?product=${encodeURIComponent(productName)}`
             : "";
-          const response = await fetch(`${baseUrl}api/1c/stock${query}`, {
-            headers,
-          });
+          const response = await authenticatedFetch(
+            `${baseUrl}api/1c/stock${query}`,
+            {
+              headers: { "Content-Type": "application/json" },
+            },
+          );
 
           if (!response.ok) {
             const apiError = await extractErrorFromResponse(response);
@@ -123,19 +117,14 @@ export const useInventoryStore = create<InventoryState>()(
 
         try {
           const baseUrl = getApiUrl();
-          const session = useAuthStore.getState().session;
-          const headers: Record<string, string> = {
-            "Content-Type": "application/json",
-          };
-
-          if (session?.accessToken) {
-            headers["Authorization"] = `Bearer ${session.accessToken}`;
-          }
 
           const query = filter ? `?filter=${encodeURIComponent(filter)}` : "";
-          const response = await fetch(`${baseUrl}api/1c/products${query}`, {
-            headers,
-          });
+          const response = await authenticatedFetch(
+            `${baseUrl}api/1c/products${query}`,
+            {
+              headers: { "Content-Type": "application/json" },
+            },
+          );
 
           if (!response.ok) {
             const apiError = await extractErrorFromResponse(response);

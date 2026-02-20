@@ -24,6 +24,7 @@ import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useAuthStore } from "@/store/authStore";
 import { getApiUrl } from "@/lib/query-client";
+import { fetchWithAccessHeaders } from "@/lib/access-request";
 import { Spacing, BorderRadius } from "@/constants/theme";
 import { AppLogger } from "@/lib/logger";
 
@@ -251,11 +252,14 @@ export default function LoginScreen() {
     async (code: string) => {
       try {
         const baseUrl = getApiUrl();
-        const response = await fetch(`${baseUrl}api/auth/exchange`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }),
-        });
+        const response = await fetchWithAccessHeaders(
+          `${baseUrl}api/auth/exchange`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code }),
+          },
+        );
         const data = await response.json();
         return handleAuthSuccess(data);
       } catch (error) {
@@ -325,11 +329,14 @@ export default function LoginScreen() {
 
     let data;
     try {
-      const response = await fetch(`${baseUrl}api/auth/${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const response = await fetchWithAccessHeaders(
+        `${baseUrl}api/auth/${endpoint}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
       data = await response.json();
     } catch (error) {
       AppLogger.error("Email auth error:", error);

@@ -144,6 +144,8 @@ async function bootstrap() {
       "x-signature-alg",
       "x-session-token",
       "x-encrypted-config",
+      "x-license-key",
+      "x-device-id",
     ],
     credentials: true,
   });
@@ -186,8 +188,18 @@ async function bootstrap() {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Increase body-parser limits for voice messages (base64 audio)
-  app.use(express.json({ limit: "50mb" }));
+  // Increase body-parser limits for voice messages (base64 audio) and keep raw body for webhook signature verification.
+  app.use(
+    express.json({
+      limit: "50mb",
+      verify: (req: express.Request, _res, buffer) => {
+        const requestWithRawBody = req as express.Request & {
+          rawBody?: string;
+        };
+        requestWithRawBody.rawBody = buffer.toString("utf8");
+      },
+    }),
+  );
   app.use(
     express.urlencoded({
       extended: false,
@@ -231,6 +243,13 @@ async function bootstrap() {
   if (fs.existsSync(webPath)) {
     expressApp.use(express.static(webPath));
   }
+
+  expressApp.get("/health", (_req: express.Request, res: express.Response) => {
+    res.status(200).json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+    });
+  });
 
   // Serve static Expo files
   const staticBuildPath = path.resolve(process.cwd(), "static-build");

@@ -9,8 +9,7 @@ import { Button } from "@/components/Button";
 import { useTheme } from "@/hooks/useTheme";
 import { useTranslation } from "@/hooks/useTranslation";
 import { Spacing, BorderRadius } from "@/constants/theme";
-import { getApiUrl } from "@/lib/query-client";
-import { useAuthStore } from "@/store/authStore";
+import { authenticatedFetch, getApiUrl } from "@/lib/query-client";
 import { AppLogger } from "@/lib/logger";
 import { useSettingsStore } from "@/store/settingsStore";
 
@@ -24,20 +23,15 @@ interface McpServer {
 
 async function performServerFetch(
   mcpServers: McpServer[],
-  session: { accessToken?: string } | null,
   setServers: (servers: McpServer[]) => void,
   setIsLoading: (v: boolean) => void,
 ) {
   const stored = mcpServers;
   const baseUrl = getApiUrl();
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (session?.accessToken) {
-    headers["Authorization"] = `Bearer ${session.accessToken}`;
-  }
   try {
-    const response = await fetch(`${baseUrl}api/mcp/servers`, { headers });
+    const response = await authenticatedFetch(`${baseUrl}api/mcp/servers`, {
+      headers: { "Content-Type": "application/json" },
+    });
     if (response.ok) {
       const data = (await response.json()) as {
         name: string;
@@ -89,7 +83,6 @@ export default function MCPServersScreen() {
   const headerHeight = useHeaderHeight();
   const { theme } = useTheme();
   const { t } = useTranslation();
-  const { session } = useAuthStore();
   const mcpServers = useSettingsStore((state) => state.mcpServers);
   const setMcpServers = useSettingsStore((state) => state.setMcpServers);
 
@@ -106,7 +99,6 @@ export default function MCPServersScreen() {
   useEffect(() => {
     performServerFetch(
       mcpServers,
-      session,
       (servers) => update({ servers }),
       (v) => update({ isLoading: v }),
     );
@@ -116,16 +108,10 @@ export default function MCPServersScreen() {
   const handleAddServer = async () => {
     update({ isConnecting: true });
     const baseUrl = getApiUrl();
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
-    if (session?.accessToken) {
-      headers["Authorization"] = `Bearer ${session.accessToken}`;
-    }
     try {
-      const response = await fetch(`${baseUrl}api/mcp/servers`, {
+      const response = await authenticatedFetch(`${baseUrl}api/mcp/servers`, {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: state.name,
           command: state.command,
@@ -169,18 +155,9 @@ export default function MCPServersScreen() {
   const handleDisconnect = async (serverName: string) => {
     try {
       const baseUrl = getApiUrl();
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (session) {
-        if (session.accessToken) {
-          headers["Authorization"] = `Bearer ${session.accessToken}`;
-        }
-      }
-
-      await fetch(`${baseUrl}api/mcp/servers/${serverName}`, {
+      await authenticatedFetch(`${baseUrl}api/mcp/servers/${serverName}`, {
         method: "DELETE",
-        headers,
+        headers: { "Content-Type": "application/json" },
       });
 
       const nextServers = state.servers.filter((s) => s.name !== serverName);

@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
 import { ConfigModule } from "@nestjs/config";
 import { APP_INTERCEPTOR } from "@nestjs/core";
 import { DbModule } from "./db/db.module";
@@ -10,6 +10,8 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { RulebookModule } from "./modules/rules/rulebook.module";
 import { SkillsModule } from "./modules/skills/skill.module";
 import { McpModule } from "./modules/mcp/mcp.module";
+import { LicenseModule } from "./modules/license/license.module";
+import { configureLicenseMiddleware } from "./modules/license/license.middleware.config";
 import { ServicesModule } from "./services/services.module";
 import { JweDecryptionInterceptor } from "./interceptors/jwe-decryption.interceptor";
 import { GlobalExceptionFilter } from "./filters/global-exception.filter";
@@ -30,6 +32,7 @@ import { GlobalExceptionFilter } from "./filters/global-exception.filter";
     RulebookModule,
     SkillsModule,
     McpModule,
+    LicenseModule,
   ],
   providers: [
     {
@@ -42,4 +45,8 @@ import { GlobalExceptionFilter } from "./filters/global-exception.filter";
     },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    configureLicenseMiddleware(consumer);
+  }
+}

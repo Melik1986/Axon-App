@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { getApiUrl } from "@/lib/api-config";
+import { fetchWithAccessHeaders } from "@/lib/access-request";
 import {
   createHybridStorage,
   AUTH_SENSITIVE_PATHS,
@@ -135,7 +136,7 @@ export const useAuthStore = create<AuthState>()(
         if (session?.refreshToken) {
           try {
             const baseUrl = getApiUrl();
-            await fetch(`${baseUrl}api/auth/logout`, {
+            await fetchWithAccessHeaders(`${baseUrl}api/auth/logout`, {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ refreshToken: session.refreshToken }),
@@ -155,11 +156,14 @@ export const useAuthStore = create<AuthState>()(
 
         try {
           const baseUrl = getApiUrl();
-          const response = await fetch(`${baseUrl}api/auth/refresh`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken: session.refreshToken }),
-          });
+          const response = await fetchWithAccessHeaders(
+            `${baseUrl}api/auth/refresh`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ refreshToken: session.refreshToken }),
+            },
+          );
 
           const data = await response.json();
 

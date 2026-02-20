@@ -8,6 +8,11 @@ import {
   EphemeralCredentials,
 } from "@/lib/jwe-encryption";
 import {
+  appendHostedAccessHeaders,
+  fetchWithAccessHeaders,
+  getHostedAccessHeaders,
+} from "@/lib/access-request";
+import {
   REQUEST_SIGNATURE_ALGORITHM,
   REQUEST_SIGNATURE_HEADERS,
   buildCanonicalSignaturePayload,
@@ -71,19 +76,20 @@ export async function authenticatedFetch(
   init?: RequestInit,
 ): Promise<Response> {
   const headers = new Headers(init?.headers);
+  await appendHostedAccessHeaders(headers);
   const token = useAuthStore.getState().getAccessToken();
   if (token && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  let res = await fetch(input, { ...init, headers });
+  let res = await fetchWithAccessHeaders(input, { ...init, headers });
 
   // 401 → try refresh once
   if (res.status === 401) {
     const newToken = await tryRefreshToken();
     if (newToken) {
       headers.set("Authorization", `Bearer ${newToken}`);
-      res = await fetch(input, { ...init, headers });
+      res = await fetchWithAccessHeaders(input, { ...init, headers });
     } else {
       await handleUnauthorizedAfterRetry();
     }
@@ -284,8 +290,10 @@ export async function secureApiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(normalizeApiRoute(route), baseUrl);
   const normalizedMethod = method.toUpperCase();
+  const accessHeaders = await getHostedAccessHeaders();
 
   const baseHeaders: Record<string, string> = {
+    ...accessHeaders,
     ...authHeaders(),
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
@@ -345,7 +353,7 @@ export async function secureApiRequest(
   const requestUsedSessionToken = (): boolean =>
     Boolean(headers["x-session-token"]);
 
-  let res = await fetch(url, {
+  let res = await fetchWithAccessHeaders(url, {
     method: normalizedMethod,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -357,7 +365,7 @@ export async function secureApiRequest(
   if (res.status === 401 && requestUsedSessionToken()) {
     clearCredentialSessionCache();
     headers = await buildHeaders();
-    res = await fetch(url, {
+    res = await fetchWithAccessHeaders(url, {
       method: normalizedMethod,
       headers,
       body: data ? JSON.stringify(data) : undefined,
@@ -375,7 +383,7 @@ export async function secureApiRequest(
         clearCredentialSessionCache();
       }
       headers = await buildHeaders();
-      res = await fetch(url, {
+      res = await fetchWithAccessHeaders(url, {
         method: normalizedMethod,
         headers,
         body: data ? JSON.stringify(data) : undefined,
@@ -415,8 +423,10 @@ export async function apiRequest(
   const baseUrl = getApiUrl();
   const url = new URL(normalizeApiRoute(route), baseUrl);
   const normalizedMethod = method.toUpperCase();
+  const accessHeaders = await getHostedAccessHeaders();
 
   const baseHeaders: Record<string, string> = {
+    ...accessHeaders,
     ...authHeaders(),
     ...(data ? { "Content-Type": "application/json" } : {}),
   };
@@ -427,7 +437,7 @@ export async function apiRequest(
     data,
   );
 
-  let res = await fetch(url, {
+  let res = await fetchWithAccessHeaders(url, {
     method: normalizedMethod,
     headers,
     body: data ? JSON.stringify(data) : undefined,
@@ -444,7 +454,7 @@ export async function apiRequest(
         url,
         data,
       );
-      res = await fetch(url, {
+      res = await fetchWithAccessHeaders(url, {
         method: normalizedMethod,
         headers,
         body: data ? JSON.stringify(data) : undefined,

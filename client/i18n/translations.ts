@@ -127,6 +127,25 @@ export const translations = {
     preferences: "Preferences",
     signIn: "Sign In",
     signUp: "Sign Up",
+    setupTitle: "Connect your server",
+    setupSubtitle:
+      "Choose Axon Cloud with a license key or connect your own self-hosted backend.",
+    setupHostedMode: "Axon Cloud",
+    setupSelfHostedMode: "Self-hosted",
+    setupHostedHint:
+      "Use your AXON license key to access the managed hosted backend.",
+    setupSelfHostedHint:
+      "Enter your own backend URL. The app will verify /health before continue.",
+    setupLicenseKey: "License key",
+    setupServerUrl: "Server URL",
+    setupContinue: "Continue",
+    setupValidating: "Validating...",
+    setupInvalidUrl: "Please enter a valid server URL",
+    setupLicenseRequired: "License key is required",
+    setupValidationFailed:
+      "Validation failed. Please verify your configuration",
+    setupHealthCheckFailed:
+      "Health check failed. Ensure your self-hosted backend is reachable",
     emailPlaceholder: "Email",
     username: "Username",
     password: "Password",
@@ -413,6 +432,30 @@ export const translations = {
     preferences: "Настройки",
     signIn: "Войти",
     signUp: "Регистрация",
+    setupTitle:
+      "\u041f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0441\u0435\u0440\u0432\u0435\u0440",
+    setupSubtitle:
+      "\u0412\u044b\u0431\u0435\u0440\u0438\u0442\u0435 Axon Cloud \u043f\u043e \u043b\u0438\u0446\u0435\u043d\u0437\u0438\u043e\u043d\u043d\u043e\u043c\u0443 \u043a\u043b\u044e\u0447\u0443 \u0438\u043b\u0438 \u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0438\u0442\u0435 \u0441\u0432\u043e\u0439 self-hosted backend.",
+    setupHostedMode: "Axon Cloud",
+    setupSelfHostedMode: "Self-hosted",
+    setupHostedHint:
+      "\u0418\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0439\u0442\u0435 \u043b\u0438\u0446\u0435\u043d\u0437\u0438\u043e\u043d\u043d\u044b\u0439 \u043a\u043b\u044e\u0447 AXON \u0434\u043b\u044f \u0434\u043e\u0441\u0442\u0443\u043f\u0430 \u043a \u0445\u043e\u0441\u0442\u0435\u0434-\u0431\u044d\u043a\u0435\u043d\u0434\u0443.",
+    setupSelfHostedHint:
+      "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 URL \u0432\u0430\u0448\u0435\u0433\u043e backend. \u041f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442 /health \u043f\u0435\u0440\u0435\u0434 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0435\u043d\u0438\u0435\u043c.",
+    setupLicenseKey:
+      "\u041b\u0438\u0446\u0435\u043d\u0437\u0438\u043e\u043d\u043d\u044b\u0439 \u043a\u043b\u044e\u0447",
+    setupServerUrl: "URL \u0441\u0435\u0440\u0432\u0435\u0440\u0430",
+    setupContinue:
+      "\u041f\u0440\u043e\u0434\u043e\u043b\u0436\u0438\u0442\u044c",
+    setupValidating: "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430...",
+    setupInvalidUrl:
+      "\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0439 URL \u0441\u0435\u0440\u0432\u0435\u0440\u0430",
+    setupLicenseRequired:
+      "\u041b\u0438\u0446\u0435\u043d\u0437\u0438\u043e\u043d\u043d\u044b\u0439 \u043a\u043b\u044e\u0447 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u0435\u043d",
+    setupValidationFailed:
+      "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043d\u0435 \u043f\u0440\u043e\u0439\u0434\u0435\u043d\u0430. \u041f\u0440\u043e\u0432\u0435\u0440\u044c\u0442\u0435 \u043a\u043e\u043d\u0444\u0438\u0433\u0443\u0440\u0430\u0446\u0438\u044e \u0438 \u043f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0441\u043d\u043e\u0432\u0430",
+    setupHealthCheckFailed:
+      "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 health \u043d\u0435 \u043f\u0440\u043e\u0448\u043b\u0430. \u0423\u0431\u0435\u0434\u0438\u0442\u0435\u0441\u044c, \u0447\u0442\u043e self-hosted backend \u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d",
     emailPlaceholder: "Email",
     username: "Логин",
     password: "Пароль",
@@ -688,6 +731,25 @@ export const translations = {
     privacyPolicy: "Datenschutz",
     signIn: "Anmelden",
     signUp: "Registrieren",
+    setupTitle: "Server verbinden",
+    setupSubtitle:
+      "W\u00e4hlen Sie Axon Cloud mit Lizenzschl\u00fcssel oder verbinden Sie Ihr eigenes Self-hosted Backend.",
+    setupHostedMode: "Axon Cloud",
+    setupSelfHostedMode: "Self-hosted",
+    setupHostedHint:
+      "Verwenden Sie Ihren AXON-Lizenzschl\u00fcssel f\u00fcr den Zugriff auf das gehostete Backend.",
+    setupSelfHostedHint:
+      "Geben Sie Ihre Backend-URL ein. Die App pr\u00fcft /health vor dem Fortfahren.",
+    setupLicenseKey: "Lizenzschl\u00fcssel",
+    setupServerUrl: "Server-URL",
+    setupContinue: "Weiter",
+    setupValidating: "Wird gepr\u00fcft...",
+    setupInvalidUrl: "Bitte geben Sie eine g\u00fcltige Server-URL ein",
+    setupLicenseRequired: "Lizenzschl\u00fcssel ist erforderlich",
+    setupValidationFailed:
+      "Validierung fehlgeschlagen. Bitte Konfiguration pr\u00fcfen und erneut versuchen",
+    setupHealthCheckFailed:
+      "Health-Check fehlgeschlagen. Stellen Sie sicher, dass Ihr Self-hosted Backend erreichbar ist",
     emailPlaceholder: "E-Mail",
     passwordPlaceholder: "Passwort",
     namePlaceholder: "Name (optional)",

@@ -1,5 +1,9 @@
 import { Platform } from "react-native";
 import Constants from "expo-constants";
+import {
+  DEFAULT_HOSTED_BASE_URL,
+  useServerAccessStore,
+} from "@/store/serverAccessStore";
 
 /**
  * Gets the base URL for the Express API server (e.g., "http://localhost:5000" or "https://repl.replit.app").
@@ -9,7 +13,20 @@ import Constants from "expo-constants";
  * @returns {string} The API base URL
  */
 export function getApiUrl(): string {
-  let host = process.env.EXPO_PUBLIC_DOMAIN;
+  const serverAccess = useServerAccessStore.getState();
+  let host: string | undefined;
+
+  if (serverAccess.isConfigured) {
+    if (serverAccess.mode === "hosted") {
+      host = serverAccess.hostedUrl || DEFAULT_HOSTED_BASE_URL;
+    } else if (serverAccess.selfHostedUrl) {
+      host = serverAccess.selfHostedUrl;
+    }
+  }
+
+  if (!host) {
+    host = process.env.EXPO_PUBLIC_DOMAIN;
+  }
 
   const resolveMetroHost = () => {
     const hostUri = Constants.expoConfig?.hostUri as string | undefined;

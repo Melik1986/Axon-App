@@ -140,3 +140,51 @@ export const insertTaskSchema = createInsertSchema(tasks).omit({
 
 export type Task = typeof tasks.$inferSelect;
 export type InsertTask = z.infer<typeof insertTaskSchema>;
+
+export const licenses = pgTable("licenses", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 64 }).notNull().unique(),
+  email: text("email"),
+  status: text("status").notNull().default("active"),
+  plan: text("plan").notNull().default("pro"),
+  maxDevices: integer("max_devices").notNull().default(1),
+  paddleSubscriptionId: text("paddle_subscription_id").unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+  updatedAt: timestamp("updated_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const processedEvents = pgTable("processed_events", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  eventId: varchar("event_id", { length: 128 }).notNull().unique(),
+  source: text("source").notNull().default("paddle"),
+  processedAt: timestamp("processed_at")
+    .default(sql`CURRENT_TIMESTAMP`)
+    .notNull(),
+});
+
+export const insertLicenseSchema = createInsertSchema(licenses).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertProcessedEventSchema = createInsertSchema(
+  processedEvents,
+).omit({
+  id: true,
+  processedAt: true,
+});
+
+export type License = typeof licenses.$inferSelect;
+export type InsertLicense = z.infer<typeof insertLicenseSchema>;
+export type ProcessedEvent = typeof processedEvents.$inferSelect;
+export type InsertProcessedEvent = z.infer<typeof insertProcessedEventSchema>;

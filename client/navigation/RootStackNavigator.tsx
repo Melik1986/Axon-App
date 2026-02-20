@@ -2,6 +2,7 @@ import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import MainTabNavigator from "@/navigation/MainTabNavigator";
 import LoginScreen from "@/screens/LoginScreen";
+import SetupScreen from "@/screens/SetupScreen";
 import LLMProviderScreen from "@/screens/LLMProviderScreen";
 import ERPSettingsScreen from "@/screens/ERPSettingsScreen";
 import RAGSettingsScreen from "@/screens/RAGSettingsScreen";
@@ -15,9 +16,11 @@ import SkillStoreScreen from "@/screens/SkillStoreScreen";
 import MCPServersScreen from "@/screens/MCPServersScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { useAuthStore } from "@/store/authStore";
+import { useServerAccessStore } from "@/store/serverAccessStore";
 import { useTranslation } from "@/hooks/useTranslation";
 
 export type RootStackParamList = {
+  Setup: undefined;
   Login: undefined;
   Main: undefined;
   LLMProvider: undefined;
@@ -39,10 +42,19 @@ export default function RootStackNavigator() {
   const { t } = useTranslation();
   const screenOptions = useScreenOptions();
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isServerConfigured = useServerAccessStore(
+    (state) => state.isConfigured,
+  );
 
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      {!isAuthenticated ? (
+      {!isServerConfigured ? (
+        <Stack.Screen
+          name="Setup"
+          component={SetupScreen}
+          options={{ headerShown: false }}
+        />
+      ) : !isAuthenticated ? (
         <Stack.Screen
           name="Login"
           component={LoginScreen}

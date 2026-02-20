@@ -147,8 +147,8 @@ export const useSettingsStore = create<SettingsState>()(
           rag: defaultRag,
           mcpServers: defaultMcpServers,
           voice: "alloy",
-          language: "ru",
-          theme: "dark",
+          language: "system",
+          theme: "system",
         }),
     }),
     {
